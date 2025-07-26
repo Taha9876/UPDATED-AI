@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Voice Shopify Agent",
+  "version": "1.0",
+  "description": "Voice-controlled automation for Shopify stores",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://*.myshopify.com/*", "https://*.shopify.com/*", "http://localhost:3000/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.myshopify.com/*", "https://*.shopify.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Voice Shopify Agent"
+  }
+}
