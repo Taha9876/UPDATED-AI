@@ -1,18 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Mic, MicOff, Settings, Zap } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import VoiceCommandDemo from "@/components/voice-commands-demo"
+import { Toaster } from "sonner"
 import type { SpeechRecognition } from "web-speech-api"
-import VoiceCommandsDemo from "@/components/voice-commands-demo"
-import BrowserCompatibility from "@/components/browser-compatibility"
-import OrnaStoreSelectors from "@/components/orna-store-selectors"
-import AdvancedVoiceCommands from "@/components/advanced-voice-commands"
 
 export default function VoiceShopifyAgent() {
   const [isListening, setIsListening] = useState(false)
@@ -30,18 +22,20 @@ export default function VoiceShopifyAgent() {
   useEffect(() => {
     // Check for speech recognition support with better fallbacks
     const checkSpeechSupport = () => {
-      if ("webkitSpeechRecognition" in window) {
-        return window.webkitSpeechRecognition
-      } else if ("SpeechRecognition" in window) {
-        return window.SpeechRecognition
+      if (typeof window !== "undefined") {
+        if ("webkitSpeechRecognition" in window) {
+          return window.webkitSpeechRecognition
+        } else if ("SpeechRecognition" in window) {
+          return window.SpeechRecognition
+        }
       }
       return null
     }
 
-    const SpeechRecognition = checkSpeechSupport()
+    const SpeechRecognitionAPI = checkSpeechSupport()
 
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition()
+    if (SpeechRecognitionAPI) {
+      recognitionRef.current = new SpeechRecognitionAPI()
       recognitionRef.current.continuous = true
       recognitionRef.current.interimResults = true
       recognitionRef.current.lang = "en-US"
@@ -66,7 +60,7 @@ export default function VoiceShopifyAgent() {
     }
 
     // Initialize speech synthesis with fallback
-    if ("speechSynthesis" in window) {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
       synthRef.current = window.speechSynthesis
     }
 
@@ -89,7 +83,7 @@ export default function VoiceShopifyAgent() {
       // Simulate getting context if running in a browser environment that supports it
       // For this Next.js app, we'll just set a default context
       setPageContext({
-        url: window.location.href,
+        url: typeof window !== "undefined" ? window.location.href : "server-side",
         pageType: "Next.js Demo Page",
         cartCount: 0, // Placeholder
       })
@@ -139,8 +133,8 @@ export default function VoiceShopifyAgent() {
       })
 
       const data = await response.json()
-      setResponse(data.response)
-      speak(data.response)
+      setResponse(data.speech) // Assuming the API returns a 'speech' field
+      speak(data.speech)
 
       // Execute the action(s) if provided (this would be simulated for the demo page)
       if (data.action) {
@@ -188,205 +182,22 @@ export default function VoiceShopifyAgent() {
     }
   }
 
+  const shopName = process.env.NEXT_PUBLIC_SHOPIFY_STORE_NAME || "Your Shopify Store"
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-gray-900">Advanced Voice-Controlled Shopify Agent</h1>
-          <p className="text-lg text-gray-600">Complete DOM automation with intelligent voice commands</p>
-          <Badge className="bg-green-500">
-            <Zap className="h-3 w-3 mr-1" />
-            Advanced AI-Powered
-          </Badge>
-        </div>
-
-        {/* Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Configuration
-            </CardTitle>
-            <CardDescription>Your Orna store is pre-configured and ready to use</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="shopify-url">Shopify Store URL</Label>
-                <Input
-                  id="shopify-url"
-                  value={shopifyUrl}
-                  onChange={(e) => setShopifyUrl(e.target.value)}
-                  placeholder="https://your-store.myshopify.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="groq-key">Groq API Key</Label>
-                <Input
-                  id="groq-key"
-                  type="password"
-                  value="********************" // Display placeholder as key is managed securely
-                  readOnly // Make it read-only as it's not set here
-                  placeholder="Managed securely via Vercel Environment Variable"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button onClick={testConnection} variant="outline">
-                Test Connection
-              </Button>
-              <Badge
-                variant={
-                  connectionStatus === "connected"
-                    ? "default"
-                    : connectionStatus === "error"
-                      ? "destructive"
-                      : "secondary"
-                }
-              >
-                {connectionStatus === "connected"
-                  ? "Connected"
-                  : connectionStatus === "error"
-                    ? "Error"
-                    : "Not Connected"}
-              </Badge>
-              {pageContext && (
-                <Badge variant="outline">
-                  Page: {pageContext.pageType} | Cart: {pageContext.cartCount}
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Browser Compatibility Check */}
-        <BrowserCompatibility />
-
-        {/* Voice Control */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mic className="h-5 w-5" />
-                Advanced Voice Control
-              </CardTitle>
-              <CardDescription>Speak naturally - the AI understands complex commands</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-center">
-                <Button
-                  size="lg"
-                  onClick={isListening ? stopListening : startListening}
-                  className={`w-32 h-32 rounded-full ${
-                    isListening ? "bg-red-500 hover:bg-red-600 animate-pulse" : "bg-blue-500 hover:bg-blue-600"
-                  }`}
-                >
-                  {isListening ? <MicOff className="h-12 w-12" /> : <Mic className="h-12 w-12" />}
-                </Button>
-              </div>
-
-              {transcript && (
-                <div className="space-y-2">
-                  <Label>Current Speech:</Label>
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <p className="text-sm">{transcript}</p>
-                  </div>
-                </div>
-              )}
-
-              {isProcessing && (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span className="text-sm text-gray-600">Processing advanced command...</span>
-                </div>
-              )}
-
-              {response && (
-                <div className="space-y-2">
-                  <Label>AI Response:</Label>
-                  <Textarea value={response} readOnly className="min-h-[100px]" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Voice Examples</CardTitle>
-              <CardDescription>Try these advanced commands</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  "Search for gold earrings under $30",
-                  "Add this to cart and checkout",
-                  "Filter by 5-star reviews",
-                  "Sort by newest arrivals",
-                  "Remove the second item from cart",
-                  "Apply discount code SAVE20",
-                  "Show me similar products",
-                  "Go back to the previous page",
-                ].map((cmd, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <Mic className="h-4 w-4 text-blue-500" />
-                    <p className="text-sm font-medium">"{cmd}"</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Advanced Commands */}
-        <AdvancedVoiceCommands />
-
-        {/* Features */}
-        <Card>
-          <CardHeader>
-            <CardTitle>🚀 Advanced Features</CardTitle>
-            <CardDescription>Powerful capabilities for complete store automation</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg bg-green-50">
-                <h3 className="font-semibold text-green-600">✓ Multi-Step Actions</h3>
-                <p className="text-sm text-gray-600">Chain multiple actions in one command</p>
-              </div>
-              <div className="p-4 border rounded-lg bg-blue-50">
-                <h3 className="font-semibold text-blue-600">✓ Context Awareness</h3>
-                <p className="text-sm text-gray-600">Adapp to current page and situation</p>
-              </div>
-              <div className="p-4 border rounded-lg bg-purple-50">
-                <h3 className="font-semibold text-purple-600">✓ Smart Filtering</h3>
-                <p className="text-sm text-gray-600">Advanced product filtering and sorting</p>
-              </div>
-              <div className="p-4 border rounded-lg bg-orange-50">
-                <h3 className="font-semibold text-orange-600">✓ Cart Management</h3>
-                <p className="text-sm text-gray-600">Complete cart control and checkout</p>
-              </div>
-              <div className="p-4 border rounded-lg bg-red-50">
-                <h3 className="font-semibold text-red-600">✓ Form Automation</h3>
-                <p className="text-sm text-gray-600">Auto-fill forms and complete orders</p>
-              </div>
-              <div className="p-4 border rounded-lg bg-indigo-50">
-                <h3 className="font-semibold text-indigo-600">✓ Error Handling</h3>
-                <p className="text-sm text-gray-600">Robust error recovery and fallbacks</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Store Selectors */}
-        <OrnaStoreSelectors />
-
-        {/* Voice Commands Demo */}
-        <VoiceCommandsDemo shopifyUrl={shopifyUrl} />
-      </div>
-    </div>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-8 bg-gray-50 dark:bg-gray-950">
+      <Card className="w-full max-w-3xl shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold">Shopify Voice Automation</CardTitle>
+          <CardDescription className="mt-2 text-lg text-muted-foreground">
+            Automate your Shopify store with voice commands using Groq and the Web Speech API.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <VoiceCommandDemo shopName={shopName} />
+        </CardContent>
+      </Card>
+      <Toaster />
+    </main>
   )
 }
