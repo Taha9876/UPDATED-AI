@@ -1,34 +1,31 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
+import { groq } from "@ai-sdk/groq"
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { shopifyUrl, groqApiKey } = await request.json()
+    const { shopifyUrl } = await req.json()
 
-    // Use the API key from the request body, which comes from the client-side input
-    if (!groqApiKey) {
-      return NextResponse.json({ error: "Groq API key is required" }, { status: 400 })
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: "Groq API Key not configured on the server." }, { status: 500 })
     }
 
-    // Create Groq instance with API key
-    const groq = createGroq({
-      apiKey: groqApiKey,
-    })
-
-    // Test Groq connection
+    // Test Groq connection by generating a simple text
     const { text } = await generateText({
-      model: groq("llama-3.1-8b-instant"),
-      prompt: 'Say "Connection successful" if you can read this.',
+      model: groq("llama3-8b-8192"), // Using a small, fast model for a quick test
+      prompt: "Say 'hello' to confirm connection.",
     })
 
-    if (text.toLowerCase().includes("connection successful")) {
-      return NextResponse.json({ status: "success", message: "Connection established" })
+    if (text.toLowerCase().includes("hello")) {
+      return NextResponse.json({ message: "Connection to Groq successful!", shopifyUrl })
     } else {
-      return NextResponse.json({ status: "error", message: "Unexpected response from Groq" }, { status: 400 })
+      return NextResponse.json({ error: "Groq connection failed: Unexpected response." }, { status: 500 })
     }
   } catch (error) {
-    console.error("Connection test failed:", error)
-    return NextResponse.json({ status: "error", message: "Failed to connect to Groq API" }, { status: 500 })
+    console.error("Error in /api/test-connection:", error)
+    return NextResponse.json(
+      { error: "Failed to connect to Groq API.", details: error instanceof Error ? error.message : String(error) },
+      { status: 500 },
+    )
   }
 }

@@ -1,37 +1,28 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
+import { groq } from "@ai-sdk/groq"
 
-export async function POST(request: NextRequest) {
+export async function GET() {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY
+
+  if (!GROQ_API_KEY) {
+    return NextResponse.json({ error: "Groq API Key not configured on the server." }, { status: 500 })
+  }
+
   try {
-    const { groqApiKey } = await request.json() // Get API key from request body
-
-    if (!groqApiKey) {
-      return NextResponse.json({ error: "Groq API key is missing." }, { status: 400 })
-    }
-
-    // Create Groq instance with API key
-    const groq = createGroq({
-      apiKey: groqApiKey,
-    })
-
-    // Test the Groq API with your key
     const { text } = await generateText({
-      model: groq("llama-3.1-8b-instant"),
-      prompt: 'Respond with "Groq API is working perfectly!" if you can read this message.',
+      model: groq("llama3-8b-8192"), // Using a suitable Groq model [^1]
+      prompt: "Hello, Groq! What is the capital of France?",
+      apiKey: GROQ_API_KEY,
     })
 
-    return NextResponse.json({
-      success: true,
-      response: text,
-      message: "Groq API connection successful!",
-    })
+    return NextResponse.json({ message: "Groq connection successful!", response: text })
   } catch (error) {
-    console.error("Groq API test failed:", error)
+    console.error("Error connecting to Groq:", error)
     return NextResponse.json(
       {
-        success: false,
-        error: error.message,
+        message: "Failed to connect to Groq.",
+        error: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
     )
