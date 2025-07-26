@@ -7,11 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import { Play, Loader2, CheckCircle, XCircle } from "lucide-react"
 
 interface VoiceCommandsDemoProps {
-  groqApiKey: string // Accept groqApiKey as a prop
-  shopifyUrl: string // Accept shopifyUrl as a prop
+  shopifyUrl: string // Only shopifyUrl is needed as a prop now
 }
 
-export default function VoiceCommandsDemo({ groqApiKey, shopifyUrl }: VoiceCommandsDemoProps) {
+export default function VoiceCommandsDemo({ shopifyUrl }: VoiceCommandsDemoProps) {
   const [testResults, setTestResults] = useState<Record<string, "idle" | "testing" | "success" | "error">>({})
   const [responses, setResponses] = useState<Record<string, string>>({})
 
@@ -35,7 +34,7 @@ export default function VoiceCommandsDemo({ groqApiKey, shopifyUrl }: VoiceComma
         body: JSON.stringify({
           command: commandData.command,
           shopifyUrl: shopifyUrl, // Use prop
-          groqApiKey: groqApiKey, // Use prop
+          // groqApiKey is no longer sent from client
         }),
       })
 
@@ -64,7 +63,7 @@ export default function VoiceCommandsDemo({ groqApiKey, shopifyUrl }: VoiceComma
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          groqApiKey: groqApiKey, // Pass the API key from the prop
+          // groqApiKey is no longer sent from client
         }),
       })
 
@@ -122,13 +121,15 @@ export default function VoiceCommandsDemo({ groqApiKey, shopifyUrl }: VoiceComma
             {getStatusIcon(testResults.groq)}
             Groq API Connection Test
           </CardTitle>
-          <CardDescription>Test your Groq API key integration</CardDescription>
+          <CardDescription>
+            Test your Groq API key integration (configured via Vercel Environment Variable)
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">API Key Status</p>
-              <p className="text-sm text-gray-600">gsk_yEHu...WtXr (configured)</p>
+              <p className="text-sm text-gray-600">Managed securely on server</p>
             </div>
             <div className="flex items-center gap-2">
               {getStatusBadge(testResults.groq)}
@@ -209,7 +210,7 @@ export default function VoiceCommandsDemo({ groqApiKey, shopifyUrl }: VoiceComma
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm">✅ Groq API key configured</span>
+              <span className="text-sm">✅ Groq API key configured (via Vercel Environment Variable)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-4 w-4 rounded-full border-2 border-gray-300" />

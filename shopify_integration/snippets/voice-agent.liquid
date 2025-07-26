@@ -100,9 +100,7 @@
 <script>
   // IMPORTANT: Replace this with the URL of your deployed Next.js application
   const NEXTJS_APP_URL = "https://your-deployed-nextjs-app.vercel.app";
-  // IMPORTANT: For security, do NOT hardcode your Groq API key here.
-  // The Groq API key will be entered by the user in the Next.js dashboard
-  // and passed securely to the backend API routes.
+  // The Groq API key is now managed securely on your Next.js backend via environment variables.
 
   class AdvancedShopifyController {
     constructor() {
@@ -638,17 +636,17 @@
           case "setAttribute":
             return this.setAttribute(action.selector, action.attribute, action.value);
           case "removeElement":
-            return this.removeElement(action.selector);
+            return this.removeElement(selector);
           case "checkout":
             return await this.checkout(action.skipToPayment, action.fillShipping);
           case "applyDiscount":
-            return await this.applyDiscount(action.code);
+            return await this.applyDiscount(code);
           case "selectVariant":
-            return await this.selectVariant(action.value);
+            return await this.selectVariant(value);
           case "updateQuantity":
-            return await this.updateQuantity(action.quantity, action.productId);
+            return await this.updateQuantity(quantity, productId);
           case "removeFromCart":
-            return await this.removeFromCart(action.productId);
+            return await this.removeFromCart(productId);
           case "back":
             window.history.back();
             return true;
@@ -764,7 +762,6 @@
         body: JSON.stringify({
           command: command,
           shopifyUrl: window.location.origin, // Pass current Shopify URL
-          groqApiKey: "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", // This should ideally come from a secure Shopify setting or be hardcoded in your deployed Next.js backend
           pageContext: domController.getPageContext(),
         }),
       });

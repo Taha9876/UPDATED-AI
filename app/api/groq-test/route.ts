@@ -15,10 +15,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { groqApiKey } = await request.json() // Get API key from request body
+    // Access Groq API key securely from environment variables
+    const groqApiKey = process.env.GROQ_API_KEY
 
     if (!groqApiKey) {
-      return new NextResponse(JSON.stringify({ error: "Groq API key is missing." }), { status: 400, headers })
+      return new NextResponse(JSON.stringify({ error: "Groq API key is missing from server environment variables." }), {
+        status: 500,
+        headers,
+      })
     }
 
     // Create Groq instance with API key
