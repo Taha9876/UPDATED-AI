@@ -1,116 +1,230 @@
-# Shopify Voice Automation
+# Voice-Controlled Shopify Automation Agent
 
-This project enables voice-controlled automation for your Shopify store using Next.js, Groq, and the Web Speech API.
+A comprehensive voice-controlled automation system for Shopify stores using completely **FREE** tools and APIs.
 
-## Features
+## 🎯 Features
 
--   **Voice Commands**: Control your Shopify store with natural language commands.
--   **Groq Integration**: Utilizes Groq for fast and efficient natural language processing.
--   **Browser Extension**: A companion browser extension to inject the voice agent into your Shopify store.
--   **Demo Page**: A Next.js application to test voice commands and Groq API connection.
+- **Voice Recognition**: Built-in Web Speech API (completely free)
+- **AI Processing**: Groq AI for fast, free inference
+- **DOM Automation**: Direct website interaction and control
+- **Universal Compatibility**: Works on any website, not just Shopify
+- **Text-to-Speech**: Built-in browser TTS for responses
+- **Browser Extension**: Chrome extension for seamless integration
 
-## Setup and Deployment
+## 🛠️ Free Tools Used
 
-### 1. Clone the Repository
+### 1. **Web Speech API** (Built-in Browser)
+- Real-time voice recognition
+- No API keys required
+- Works offline
+- Supports multiple languages
 
-\`\`\`bash
-git clone [your-repo-url]
-cd shopify-voice-automation
-\`\`\`
+### 2. **Groq AI** (Free Tier)
+- Fast AI inference (up to 14,000 tokens/minute free)
+- Multiple model options
+- Easy integration with AI SDK
 
-### 2. Install Dependencies
+### 3. **Speech Synthesis API** (Built-in Browser)
+- Text-to-speech responses
+- Multiple voice options
+- No external dependencies
+
+### 4. **Chrome Extensions API** (Free)
+- DOM manipulation capabilities
+- Cross-site functionality
+- Persistent background processes
+
+## 🚀 Setup Instructions
+
+### 1. Clone and Install Dependencies
 
 \`\`\`bash
 npm install
-# or
-yarn install
-# or
-pnpm install
+npm run dev
 \`\`\`
 
-### 3. Environment Variables
+### 2. Get Free Groq API Key
 
-Create a `.env.local` file in the root of your project and add your Groq API key:
+1. Visit [console.groq.com](https://console.groq.com)
+2. Sign up for free account
+3. Generate API key (free tier includes 14,000 tokens/minute)
 
+### 3. Install Browser Extension
+
+1. Open Chrome and go to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `public/extension` folder
+4. Pin the extension to your toolbar
+
+### 4. Configure the System
+
+1. Open the dashboard at `http://localhost:3000`
+2. Enter your Shopify store URL
+3. Add your Groq API key
+4. Test the connection
+
+## 🎤 Voice Commands
+
+### Navigation Commands
+- "Go to homepage"
+- "Navigate back" 
+- "Go to checkout"
+- "Show cart"
+
+### Product Commands
+- "Search for [product name]"
+- "Add to cart"
+- "Show product details"
+- "Compare products"
+
+### Shopping Commands
+- "Proceed to checkout"
+- "Apply discount code"
+- "Update quantity"
+- "Remove from cart"
+
+### Advanced Commands
+- "Filter by price under $50"
+- "Sort by popularity"
+- "Show reviews"
+- "Find similar products"
+
+## 🏗️ Architecture
+
+### Frontend (Next.js App)
+- Voice recognition interface
+- Real-time transcription
+- AI response display
+- Configuration management
+
+### Backend API Routes
+- `/api/process-command`: Processes voice commands using Groq AI
+- `/api/test-connection`: Tests API connectivity
+
+### Browser Extension
+- **manifest.json**: Extension configuration
+- **background.js**: Service worker for message handling
+- **content.js**: DOM manipulation and automation
+- **popup.html**: Quick access interface
+
+### AI Processing Flow
+1. Voice → Web Speech API → Text
+2. Text → Groq AI → Structured Command
+3. Command → Extension → DOM Action
+4. Response → Text-to-Speech → User
+
+## 🔧 Customization
+
+### Adding New Commands
+
+1. **Update the AI prompt** in `/api/process-command/route.ts`:
+\`\`\`typescript
+system: \`Available actions:
+- customAction: {type: "customAction", params: "value"}\`
 \`\`\`
-GROQ_API_KEY=your_groq_api_key_here
-NEXT_PUBLIC_SHOPIFY_STORE_NAME="Your Shopify Store Name"
+
+2. **Add handler** in `content.js`:
+\`\`\`javascript
+case 'customAction':
+  this.handleCustomAction(action.params);
+  break;
 \`\`\`
 
-For Vercel deployments, set `GROQ_API_KEY` as an environment variable in your Vercel project settings.
+### Supporting New Websites
 
-### 4. Run Locally
+1. **Update manifest.json** with new host permissions
+2. **Add site-specific selectors** in the DOM controller
+3. **Test and refine** the automation logic
 
+### Advanced AI Features
+
+The system uses the AI SDK with Groq for:
+- **Intent Recognition**: Understanding complex voice commands
+- **Context Awareness**: Maintaining conversation state
+- **Action Planning**: Breaking down complex tasks
+- **Error Handling**: Graceful failure recovery
+
+## 🌐 Universal Website Support
+
+This system can be adapted for any website by:
+
+1. **Updating selectors** in the DOM controller
+2. **Adding site-specific logic** for navigation
+3. **Customizing the AI prompts** for domain-specific actions
+4. **Testing automation flows** on the target site
+
+## 📊 Performance & Limits
+
+### Groq Free Tier Limits
+- 14,000 tokens per minute
+- Multiple model options
+- No daily limits
+- Commercial use allowed
+
+### Browser API Limits
+- Web Speech API: No limits
+- Speech Synthesis: No limits
+- Extension APIs: Standard Chrome limits
+
+## 🔒 Privacy & Security
+
+- **Local Processing**: Voice recognition happens in browser
+- **No Data Storage**: Commands are processed in real-time
+- **Secure APIs**: All API calls use HTTPS
+- **User Control**: Full control over data and permissions
+
+## 🚀 Deployment Options
+
+### Local Development
 \`\`\`bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 \`\`\`
 
-The application will be available at `http://localhost:3000`.
+### Production Build
+\`\`\`bash
+npm run build
+npm start
+\`\`\`
 
-### 5. Deploy to Vercel
+### Vercel Deployment
+- Push to GitHub
+- Connect to Vercel
+- Deploy automatically
 
-Deploy your Next.js application to Vercel. Ensure you set the `GROQ_API_KEY` environment variable in your Vercel project settings.
+## 🤝 Contributing
 
-### 6. Shopify Integration
+1. Fork the repository
+2. Create a feature branch
+3. Add new voice commands or website support
+4. Test thoroughly
+5. Submit a pull request
 
-#### a. Get Your Next.js App URL
+## 📝 License
 
-After deploying your Next.js app to Vercel, get its public URL (e.g., `https://your-app-name.vercel.app`). This will be your `NEXTJS_APP_URL`.
+MIT License - feel free to use and modify for your projects!
 
-#### b. Add Liquid Snippet to Shopify
+## 🆘 Troubleshooting
 
-1.  In your Shopify admin, navigate to **Online Store > Themes**.
-2.  Find your current theme and click **Actions > Edit code**.
-3.  Under the `Snippets` directory, create a new snippet named `voice-agent.liquid`.
-4.  Copy the content from `shopify_integration/snippets/voice-agent.liquid` into this new snippet.
-5.  **Important**: Replace `YOUR_NEXTJS_APP_URL` in the `voice-agent.liquid` snippet with your actual deployed Next.js app URL.
+### Voice Recognition Not Working
+- Check microphone permissions
+- Ensure HTTPS connection
+- Try different browsers (Chrome recommended)
 
-    ```liquid
-    <script>
-      window.NEXTJS_APP_URL = "YOUR_NEXTJS_APP_URL"; // e.g., "https://your-app-name.vercel.app"
-    </script>
-    \`\`\`
+### AI Commands Not Processing
+- Verify Groq API key
+- Check network connection
+- Monitor browser console for errors
 
-6.  Include the snippet in your theme's `theme.liquid` file. Find the `</body>` tag and add the following line just before it:
+### Extension Not Loading
+- Enable Developer mode in Chrome
+- Check extension permissions
+- Reload the extension
 
-    ```liquid
-    {% render 'voice-agent' %}
-    \`\`\`
+## 🔮 Future Enhancements
 
-#### c. Install the Browser Extension
-
-1.  Open your browser (e.g., Chrome) and go to `chrome://extensions`.
-2.  Enable "Developer mode" in the top right corner.
-3.  Click "Load unpacked" and select the `public/extension` directory from your cloned project.
-4.  The extension will now be installed. Pin it to your toolbar for easy access.
-
-### 7. Usage
-
-1.  Visit your Shopify store.
-2.  Click the browser extension icon.
-3.  Click the microphone button to start listening for commands.
-4.  Try commands like:
-    -   "Go to products"
-    -   "Search for t-shirts"
-    -   "Add Vintage T-Shirt to cart"
-    -   "Go to checkout"
-    -   "Increase quantity of [product name] to [number]"
-    -   "Remove [product name] from cart"
-
-## Project Structure
-
--   `app/api`: Next.js API routes for processing voice commands and testing Groq connection.
--   `components`: React components, including the voice command demo and UI components.
--   `public/extension`: Source code for the browser extension.
--   `shopify_integration`: Shopify Liquid snippet for injecting the voice agent.
-
-## Troubleshooting
-
--   **"Speech recognition not supported"**: Ensure you are using a browser that supports the Web Speech API (e.g., Chrome, Edge).
--   **API Key Errors**: Double-check your `GROQ_API_KEY` in `.env.local` (for local) or Vercel environment variables (for deployment).
--   **Command Processing Errors**: Check the network tab in your browser's developer tools for errors from `/api/process-command`.
--   **Extension Not Working**: Ensure "Developer mode" is enabled in `chrome://extensions` and the extension is loaded unpacked correctly. Also, verify `NEXTJS_APP_URL` in your `voice-agent.liquid` snippet is correct.
+- **Multi-language Support**: Voice commands in different languages
+- **Visual Recognition**: Screenshot analysis for better context
+- **Workflow Recording**: Record and replay complex shopping flows
+- **Analytics Dashboard**: Track usage and optimize commands
+- **Mobile Support**: Voice control on mobile browsers
+\`\`\`

@@ -1,39 +1,27 @@
-# Next.js
-.next/
-out/
-.vercel/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
-node_modules/
+# dependencies
+/node_modules
 
-# Environment variables
-.env.local
-.env.production
-.env.development
+# next.js
+/.next/
+/out/
 
-# Logs
+# production
+/build
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local history
-.history/
+# env files
+.env*
 
-# VS Code
-.vscode/
+# vercel
+.vercel
 
-# macOS
-.DS_Store
-
-# Thumbnails
-.thumbnails/
-
-# Build artifacts
-dist/
-build/
-
-# Custom
-*.log
-*.tmp
-*.bak
+# typescript
+*.tsbuildinfo
+next-env.d.ts
