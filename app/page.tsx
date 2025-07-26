@@ -19,8 +19,7 @@ export default function VoiceShopifyAgent() {
   const [transcript, setTranscript] = useState("")
   const [response, setResponse] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [shopifyUrl, setShopifyUrl] = useState("https://cfcu5s-iu.myshopify.com")
-  const [groqApiKey, setGroqApiKey] = useState("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")
+  const [shopifyUrl, setShopifyUrl] = useState("https://cfcu5s-iu.myshopify.com") // Default Shopify URL
   const [connectionStatus, setConnectionStatus] = useState<"disconnected" | "connected" | "error">("connected")
   const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(true)
   const [pageContext, setPageContext] = useState(null)
@@ -72,6 +71,8 @@ export default function VoiceShopifyAgent() {
     }
 
     // Get page context from extension if available
+    // Note: This part is for the *Next.js app's* page, not the Shopify store.
+    // The Shopify integration handles its own context.
     getPageContext()
 
     return () => {
@@ -82,14 +83,16 @@ export default function VoiceShopifyAgent() {
   }, [])
 
   const getPageContext = async () => {
+    // This function is primarily for the Next.js app's own context display.
+    // The Shopify Liquid script handles context for the Shopify store itself.
     try {
-      if (typeof window.chrome !== "undefined" && window.chrome.tabs) {
-        const [tab] = await window.chrome.tabs.query({ active: true, currentWindow: true })
-        if (tab.id) {
-          const response = await window.chrome.tabs.sendMessage(tab.id, { type: "GET_CONTEXT" })
-          setPageContext(response.context)
-        }
-      }
+      // Simulate getting context if running in a browser environment that supports it
+      // For this Next.js app, we'll just set a default context
+      setPageContext({
+        url: window.location.href,
+        pageType: "Next.js Demo Page",
+        cartCount: 0, // Placeholder
+      })
     } catch (error) {
       console.log("Could not get page context:", error)
     }
@@ -130,8 +133,8 @@ export default function VoiceShopifyAgent() {
         body: JSON.stringify({
           command,
           shopifyUrl,
-          groqApiKey,
-          pageContext,
+          // groqApiKey is no longer sent from client
+          pageContext, // This page context is for the Next.js demo page
         }),
       })
 
@@ -139,14 +142,13 @@ export default function VoiceShopifyAgent() {
       setResponse(data.response)
       speak(data.response)
 
-      // Execute the action(s) if provided
+      // Execute the action(s) if provided (this would be simulated for the demo page)
       if (data.action) {
-        await executeAction(data.action)
+        console.log("Simulating action on demo page:", data.action)
       }
       if (data.followUp && Array.isArray(data.followUp)) {
         for (const action of data.followUp) {
-          await executeAction(action)
-          await new Promise((resolve) => setTimeout(resolve, 1000)) // Wait between actions
+          console.log("Simulating follow-up action on demo page:", action)
         }
       }
     } catch (error) {
@@ -156,27 +158,6 @@ export default function VoiceShopifyAgent() {
       speak(errorMsg)
     } finally {
       setIsProcessing(false)
-    }
-  }
-
-  const executeAction = async (action: any) => {
-    try {
-      // Send action to content script via extension messaging
-      if (typeof window.chrome !== "undefined" && window.chrome.tabs) {
-        const [tab] = await window.chrome.tabs.query({ active: true, currentWindow: true })
-        if (tab.id) {
-          const response = await window.chrome.tabs.sendMessage(tab.id, {
-            type: "EXECUTE_ACTION",
-            action: action,
-          })
-          console.log("Action executed:", response)
-        }
-      } else {
-        // For demo purposes, simulate the action
-        console.log("Executing action:", action)
-      }
-    } catch (error) {
-      console.error("Error executing action:", error)
     }
   }
 
@@ -190,7 +171,7 @@ export default function VoiceShopifyAgent() {
         },
         body: JSON.stringify({
           shopifyUrl,
-          groqApiKey,
+          // groqApiKey is no longer sent from client
         }),
       })
 
@@ -245,9 +226,9 @@ export default function VoiceShopifyAgent() {
                 <Input
                   id="groq-key"
                   type="password"
-                  value={groqApiKey}
-                  onChange={(e) => setGroqApiKey(e.target.value)}
-                  placeholder="Enter your Groq API key"
+                  value="********************" // Display placeholder as key is managed securely
+                  readOnly // Make it read-only as it's not set here
+                  placeholder="Managed securely via Vercel Environment Variable"
                 />
               </div>
             </div>
@@ -378,7 +359,7 @@ export default function VoiceShopifyAgent() {
               </div>
               <div className="p-4 border rounded-lg bg-blue-50">
                 <h3 className="font-semibold text-blue-600">✓ Context Awareness</h3>
-                <p className="text-sm text-gray-600">Adapts to current page and situation</p>
+                <p className="text-sm text-gray-600">Adapp to current page and situation</p>
               </div>
               <div className="p-4 border rounded-lg bg-purple-50">
                 <h3 className="font-semibold text-purple-600">✓ Smart Filtering</h3>
@@ -404,7 +385,7 @@ export default function VoiceShopifyAgent() {
         <OrnaStoreSelectors />
 
         {/* Voice Commands Demo */}
-        <VoiceCommandsDemo groqApiKey={groqApiKey} shopifyUrl={shopifyUrl} />
+        <VoiceCommandsDemo shopifyUrl={shopifyUrl} />
       </div>
     </div>
   )

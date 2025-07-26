@@ -636,17 +636,17 @@
           case "setAttribute":
             return this.setAttribute(action.selector, action.attribute, action.value);
           case "removeElement":
-            return this.removeElement(selector);
+            return this.removeElement(action.selector);
           case "checkout":
             return await this.checkout(action.skipToPayment, action.fillShipping);
           case "applyDiscount":
-            return await this.applyDiscount(code);
+            return await this.applyDiscount(action.code);
           case "selectVariant":
-            return await this.selectVariant(value);
+            return await this.selectVariant(action.value);
           case "updateQuantity":
-            return await this.updateQuantity(quantity, productId);
+            return await this.updateQuantity(action.quantity, action.productId);
           case "removeFromCart":
-            return await this.removeFromCart(productId);
+            return await this.removeFromCart(action.productId);
           case "back":
             window.history.back();
             return true;
