@@ -1,43 +1,72 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+"use client"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Code, Search, ShoppingCart, Home, ArrowLeft } from "lucide-react"
 
 export default function OrnaStoreSelectors() {
+  const selectors = [
+    {
+      name: "Search Box",
+      selector: 'input[type="search"], .search-input, [data-testid="search"]',
+      icon: Search,
+      description: "Main search functionality",
+    },
+    {
+      name: "Cart Icon",
+      selector: '.cart-icon, [data-testid="cart"], .header__icon--cart',
+      icon: ShoppingCart,
+      description: "Shopping cart access",
+    },
+    {
+      name: "Home Link",
+      selector: 'a[href="/"], .header__heading-link, .logo',
+      icon: Home,
+      description: "Homepage navigation",
+    },
+    {
+      name: "Product Links",
+      selector: ".product-item a, .card__heading a, .product-card-wrapper a",
+      icon: ArrowLeft,
+      description: "Individual product pages",
+    },
+    {
+      name: "Add to Cart",
+      selector: '.btn--add-to-cart, [name="add"], .product-form__cart-submit',
+      icon: ShoppingCart,
+      description: "Add product to cart button",
+    },
+  ]
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Shopify Store DOM Selectors</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Code className="h-5 w-5" />
+          Orna Store DOM Selectors
+        </CardTitle>
+        <CardDescription>Customized selectors for your cfcu5s-iu.myshopify.com store</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          For the voice commands to interact correctly with your Shopify store, the system needs to know how to find
-          specific elements on your store's pages. These are common selectors for a default Shopify theme.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-semibold mb-2">Navigation & Search</h4>
-            <ul className="list-disc list-inside text-sm space-y-1">
-              <li>`Search Input`: `input[name="q"]` or `input[type="search"]`</li>
-              <li>`Search Button`: `button[type="submit"]` within a search form</li>
-              <li>`Cart Icon/Link`: `a[href="/cart"]` or `[data-cart-icon]`</li>
-              <li>`Product Page Link`: `a[href*="/products/"]`</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-2">Product & Cart Actions</h4>
-            <ul className="list-disc list-inside text-sm space-y-1">
-              <li>`Add to Cart Button`: `button[name="add"]` or `button[type="submit"][name="add"]`</li>
-              <li>`Product Quantity Input`: `input[name="quantity"]`</li>
-              <li>`Cart Item Quantity Input`: `input[name*="updates[]"]`</li>
-              <li>`Remove Cart Item Button`: `button[name="update"]` or `a[href*="/cart/change"]`</li>
-              <li>`Checkout Button`: `button[name="checkout"]` or `a[href="/checkout"]`</li>
-            </ul>
-          </div>
+      <CardContent>
+        <div className="space-y-3">
+          {selectors.map((selector, index) => (
+            <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+              <selector.icon className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium">{selector.name}</span>
+                  <Badge variant="outline" className="text-xs">
+                    CSS
+                  </Badge>
+                </div>
+                <code className="text-xs bg-gray-200 px-2 py-1 rounded text-gray-700 block mb-1">
+                  {selector.selector}
+                </code>
+                <p className="text-xs text-gray-600">{selector.description}</p>
+              </div>
+            </div>
+          ))}
         </div>
-        <Separator />
-        <p className="text-sm text-muted-foreground">
-          **Customization:** If your Shopify theme uses different HTML structures or class names, you might need to
-          update these selectors in the `public/extension/content.js` file to ensure the voice commands work seamlessly.
-        </p>
       </CardContent>
     </Card>
   )

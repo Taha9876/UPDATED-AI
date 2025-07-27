@@ -1,179 +1,102 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
-import { groq } from "@ai-sdk/groq"
-import { z } from "zod"
+import { createGroq } from "@ai-sdk/groq"
 
-// Define the schema for the expected action from the AI model
-const actionSchema = z.object({
-  type: z.enum([
-    "navigate",
-    "search",
-    "add_to_cart",
-    "go_to_cart",
-    "go_to_checkout",
-    "click_element",
-    "scroll",
-    "refresh_page",
-    "inform", // For responses that don't require a specific DOM action
-    "update_quantity", // New: Update quantity of an item in cart
-    "remove_item", // New: Remove an item from cart
-    "apply_discount", // New: Apply a discount code
-    "view_orders", // New: Navigate to order history
-    "contact_support", // New: Navigate to contact support
-    "sort_products", // New: Sort products
-    "filter_products", // New: Filter products
-    "add_to_wishlist", // New: Add item to wishlist
-    "view_wishlist", // New: View wishlist
-    "clear_cart", // New: Clear the entire cart
-  ]),
-  payload: z.record(z.any()).optional(), // Flexible payload for different action types
-})
+export async function POST(request: NextRequest) {
+  // Set CORS headers for Shopify integration
+  const headers = {
+    "Access-Control-Allow-Origin": "*", // Replace with your Shopify domain in production for security
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  }
 
-export async function POST(req: Request) {
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, { status: 204, headers })
+  }
+
   try {
-    const { command, shopifyUrl, pageContext } = await req.json()
+    const { command, shopifyUrl, pageContext } = await request.json()
 
-    const GROQ_API_KEY = process.env.GROQ_API_KEY
+    // Access Groq API key securely from environment variables
+    const groqApiKey = process.env.GROQ_API_KEY
 
-    if (!GROQ_API_KEY) {
-      return NextResponse.json({ error: "Groq API Key not configured on the server." }, { status: 500 })
+    if (!groqApiKey) {
+      return new NextResponse(JSON.stringify({ error: "Groq API key is missing from server environment variables." }), {
+        status: 500,
+        headers,
+      })
     }
 
-    const systemPrompt = `
-      You are an AI assistant for a Shopify store. Your goal is to interpret user voice commands and translate them into actionable steps for a browser extension to execute on a Shopify store.
-      You have access to the current Shopify page context.
-      
-      Current Shopify URL: ${shopifyUrl}
-      Current Page Context: ${JSON.stringify(pageContext, null, 2)}
-
-      Based on the user's command, determine the most appropriate action and its parameters.
-      If a command requires navigating to a specific page, use the 'navigate' action.
-      If a command requires searching, use the 'search' action.
-      If a command requires adding to cart, use the 'add_to_cart' action.
-      If a command requires going to cart, use the 'go_to_cart' action.
-      If a command requires going to checkout, use the 'go_to_checkout' action.
-      If a command requires clicking a specific element (e.g., a button or link by text or selector), use 'click_element'.
-      If a command requires scrolling, use 'scroll'.
-      If a command requires refreshing the page, use 'refresh_page'.
-      If the command is purely informational or cannot be translated into a direct action, use the 'inform' action and provide a helpful response.
-      Use 'update_quantity' to change the quantity of an item in the cart.
-      Use 'remove_item' to remove a specific item from the cart.
-      Use 'apply_discount' to apply a discount code.
-      Use 'view_orders' to navigate to the user's order history.
-      Use 'contact_support' to navigate to the support page.
-      Use 'sort_products' to sort product listings.
-      Use 'filter_products' to apply filters to product listings.
-      Use 'add_to_wishlist' to add a product to the wishlist.
-      Use 'view_wishlist' to navigate to the wishlist page.
-      Use 'clear_cart' to empty the shopping cart.
-
-      Provide your response as a JSON object with the following structure:
-      {
-        "speech": "A short, natural language response to the user.",
-        "action": {
-          "type": "navigate" | "search" | "add_to_cart" | "go_to_cart" | "go_to_checkout" | "click_element" | "scroll" | "refresh_page" | "inform" | "update_quantity" | "remove_item" | "apply_discount" | "view_orders" | "contact_support" | "sort_products" | "filter_products" | "add_to_wishlist" | "view_wishlist" | "clear_cart",
-          "payload": {
-            // Parameters specific to the action type
-            // For 'navigate': { "path": "/products" } or { "url": "full_url" }
-            // For 'search': { "query": "t-shirt" }
-            // For 'add_to_cart': { "productName": "Vintage T-Shirt", "quantity": 1 }
-            // For 'click_element': { "selector": "button.add-to-cart", "text": "Add to Cart" } (use one or both)
-            // For 'scroll': { "direction": "up" | "down" }
-            // For 'inform': { "message": "Your message here" }
-            // For 'update_quantity': { "productName": "Blue Shirt", "quantity": 3 }
-            // For 'remove_item': { "productName": "Red Dress" }
-            // For 'apply_discount': { "code": "SAVE10" }
-            // For 'sort_products': { "criteria": "price", "order": "asc" }
-            // For 'filter_products': { "category": "electronics", "priceMax": 500 }
-            // For 'add_to_wishlist': { "productName": "Leather Wallet" }
-          }
-        }
-      }
-
-      Examples:
-      User: "Go to products"
-      Response: { "speech": "Navigating to the products page.", "action": { "type": "navigate", "payload": { "path": "/products" } } }
-
-      User: "Search for vintage t-shirts"
-      Response: { "speech": "Searching for vintage t-shirts.", "action": { "type": "search", "payload": { "query": "vintage t-shirts" } } }
-
-      User: "Add the blue shirt to my cart"
-      Response: { "speech": "Adding the blue shirt to your cart.", "action": { "type": "add_to_cart", "payload": { "productName": "blue shirt", "quantity": 1 } } }
-
-      User: "What is my cart total?" (assuming pageContext has cart info)
-      Response: { "speech": "Your current cart has ${pageContext.cartCount} items.", "action": { "type": "inform", "payload": { "message": "Cart total requested" } } }
-
-      User: "Go to checkout"
-      Response: { "speech": "Proceeding to checkout.", "action": { "type": "go_to_checkout", "payload": {} } }
-
-      User: "Click the buy now button"
-      Response: { "speech": "Clicking the buy now button.", "action": { "type": "click_element", "payload": { "text": "Buy Now" } } }
-
-      User: "Scroll down"
-      Response: { "speech": "Scrolling down the page.", "action": { "type": "scroll", "payload": { "direction": "down" } } }
-
-      User: "Refresh the page"
-      Response: { "speech": "Refreshing the page.", "action": { "type": "refresh_page", "payload": {} } }
-
-      User: "Tell me a joke"
-      Response: { "speech": "Why don't scientists trust atoms? Because they make up everything!", "action": { "type": "inform", "payload": { "message": "Joke requested" } } }
-
-      User: "Change the quantity of the vintage t-shirt to 3"
-      Response: { "speech": "Updating the quantity of vintage t-shirt to 3.", "action": { "type": "update_quantity", "payload": { "productName": "vintage t-shirt", "quantity": 3 } } }
-
-      User: "Remove the red dress from my cart"
-      Response: { "speech": "Removing the red dress from your cart.", "action": { "type": "remove_item", "payload": { "productName": "red dress" } } }
-
-      User: "Apply discount code SUMMER20"
-      Response: { "speech": "Applying discount code SUMMER20.", "action": { "type": "apply_discount", "payload": { "code": "SUMMER20" } } }
-
-      User: "Show me my past orders"
-      Response: { "speech": "Navigating to your order history.", "action": { "type": "view_orders", "payload": {} } }
-
-      User: "I need help"
-      Response: { "speech": "Navigating to the contact support page.", "action": { "type": "contact_support", "payload": {} } }
-
-      User: "Sort products by price low to high"
-      Response: { "speech": "Sorting products by price from low to high.", "action": { "type": "sort_products", "payload": { "criteria": "price", "order": "asc" } } }
-
-      User: "Filter by category electronics"
-      Response: { "speech": "Applying filter for electronics category.", "action": { "type": "filter_products", "payload": { "category": "electronics" } } }
-
-      User: "Add this item to my wishlist"
-      Response: { "speech": "Adding the current item to your wishlist.", "action": { "type": "add_to_wishlist", "payload": { "productName": "current product" } } }
-
-      User: "View my wishlist"
-      Response: { "speech": "Navigating to your wishlist.", "action": { "type": "view_wishlist", "payload": {} } }
-
-      User: "Clear my shopping cart"
-      Response: { "speech": "Clearing your shopping cart.", "action": { "type": "clear_cart", "payload": {} } }
-
-      Prioritize direct actions over informational responses if a clear action can be inferred.
-      If a product name is mentioned for 'add_to_cart', extract it accurately.
-      Ensure the 'path' for 'navigate' is relative to the Shopify store root (e.g., /products, /collections/summer-sale).
-      For 'click_element', try to infer a common selector or text if possible.
-    `
-
-    const { object: aiResponse } = await generateText({
-      model: groq("llama3-8b-8192"), // Use a suitable Groq model
-      system: systemPrompt,
-      prompt: command,
-      apiKey: GROQ_API_KEY,
-      schema: z.object({
-        speech: z.string(),
-        action: actionSchema,
-      }),
+    // Create Groq instance with API key
+    const groq = createGroq({
+      apiKey: groqApiKey,
     })
 
-    return NextResponse.json(aiResponse)
+    // Use Groq to understand the command and generate appropriate actions
+    const { text } = await generateText({
+      model: groq("llama-3.1-8b-instant"),
+      system: `You are an advanced voice assistant for the Orna jewelry and fashion store (cfcu5s-iu.myshopify.com). 
+You can perform ANY DOM action on the website. Analyze voice commands and return JSON with:
+1. "response": A natural language response to speak back to the user
+2. "action": An object with detailed action for DOM manipulation
+3. "followUp": Optional array of additional actions to perform in sequence
+
+Current page context: ${JSON.stringify(pageContext)}
+
+Available actions (be creative and combine them):
+- navigate: {type: "navigate", url: "homepage|catalog|contact|search|cart|checkout|back|forward", target: "_self|_blank"}
+- search: {type: "search", query: "search term", filters: {price: "range", category: "type"}}
+- click: {type: "click", selector: "CSS selector", waitFor: "optional selector to wait for"}
+- addToCart: {type: "addToCart", productId: "optional", quantity: 1, variant: "optional"}
+- fillForm: {type: "fillForm", fields: {field: "value"}, submit: true|false}
+- scroll: {type: "scroll", direction: "up|down|top|bottom", amount: "pixels or viewport"}
+- filter: {type: "filter", category: "price|size|color|brand", value: "filter value"}
+- sort: {type: "sort", by: "price|popularity|newest|rating", order: "asc|desc"}
+- hover: {type: "hover", selector: "CSS selector"}
+- wait: {type: "wait", duration: 1000}
+- getText: {type: "getText", selector: "CSS selector"}
+- setAttribute: {type: "setAttribute", selector: "CSS selector", attribute: "attr", value: "val"}
+- removeElement: {type: "removeElement", selector: "CSS selector"}
+- checkout: {type: "checkout", skipToPayment: false, fillShipping: {}}
+- applyDiscount: {type: "applyDiscount", code: "discount code"}
+- selectVariant: {type: "selectVariant", option: "size|color", value: "variant value"}
+- updateQuantity: {type: "updateQuantity", quantity: number, productId: "optional"}
+- removeFromCart: {type: "removeFromCart", productId: "optional"}
+- compareProducts: {type: "compareProducts", productIds: ["id1", "id2"]}
+- readReviews: {type: "readReviews", productId: "optional"}
+- wishlist: {type: "wishlist", action: "add|remove", productId: "optional"}
+
+For complex commands, create sequences of actions. Examples:
+- "Find cheap earrings" → search + filter by price
+- "Buy this product" → addToCart + navigate to checkout
+- "Compare these two items" → compareProducts + scroll to comparison
+- "Remove everything from cart" → navigate to cart + removeFromCart (all)
+
+Be intelligent about context:
+- If on product page: can add to cart, select variants, read reviews
+- If on collection page: can filter, sort, search within collection
+- If on cart page: can update quantities, remove items, apply discounts, checkout
+- If on homepage: can navigate anywhere, search, view offers
+
+Always respond with valid JSON only. Be creative and handle complex multi-step requests.`,
+      prompt: `User said: "${command}". Current page: ${pageContext?.url || shopifyUrl}. Page type: ${pageContext?.pageType || "unknown"}. What should I do?`,
+    })
+
+    try {
+      const parsed = JSON.parse(text)
+      return new NextResponse(JSON.stringify(parsed), { status: 200, headers })
+    } catch (parseError) {
+      // Fallback if JSON parsing fails
+      return new NextResponse(
+        JSON.stringify({
+          response: "I understood your command. Let me help you with that.",
+          action: { type: "navigate", url: "homepage" },
+        }),
+        { status: 200, headers },
+      )
+    }
   } catch (error) {
-    console.error("Error in /api/process-command:", error)
-    return NextResponse.json(
-      {
-        speech: "Sorry, I couldn't process that command. Please try again.",
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    )
+    console.error("Error processing command:", error)
+    return new NextResponse(JSON.stringify({ error: "Failed to process command" }), { status: 500, headers })
   }
 }

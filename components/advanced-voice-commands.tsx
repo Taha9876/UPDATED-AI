@@ -2,8 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Search, ShoppingCart, ArrowUpDown, MousePointer, CreditCard, Eye, Zap } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
+import { Search, ShoppingCart, ArrowUpDown, MousePointer, CreditCard, Edit, Eye, Zap } from "lucide-react"
 
 export default function AdvancedVoiceCommands() {
   const advancedCommands = [
@@ -49,6 +48,17 @@ export default function AdvancedVoiceCommands() {
         { text: "Read customer reviews", action: "Navigate to reviews section" },
         { text: "Compare this with similar items", action: "Open product comparison" },
         { text: "Add to wishlist", action: "Save product to wishlist" },
+      ],
+    },
+    {
+      category: "Cart Management",
+      icon: Edit,
+      color: "bg-red-100 text-red-800",
+      commands: [
+        { text: "Change quantity to 3", action: "Update cart item quantity" },
+        { text: "Remove the first item", action: "Remove specific cart item" },
+        { text: "Show me cart total", action: "Display cart summary" },
+        { text: "Update shipping address", action: "Modify checkout information" },
       ],
     },
     {
@@ -115,39 +125,27 @@ export default function AdvancedVoiceCommands() {
           </CardTitle>
           <CardDescription>Powerful voice commands that can perform complex actions on your Orna store</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Beyond basic navigation, you can issue more complex commands for store management.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-semibold mb-2">Cart Management</h4>
-              <ul className="list-disc list-inside text-sm space-y-1">
-                <li>"Add [product name] to cart"</li>
-                <li>"Increase quantity of [product name] to [number]"</li>
-                <li>"Decrease quantity of [product name] by [number]"</li>
-                <li>"Remove [product name] from cart"</li>
-                <li>"Clear my cart"</li>
-                <li>"Go to checkout"</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Product & Order Lookup (Simulated)</h4>
-              <ul className="list-disc list-inside text-sm space-y-1">
-                <li>"Show me details for [product name]"</li>
-                <li>"What is the price of [product name]?"</li>
-                <li>"Check stock for [product name]"</li>
-                <li>"Find order number [order number]"</li>
-                <li>"What is the status of my last order?"</li>
-              </ul>
-            </div>
+        <CardContent>
+          <div className="space-y-6">
+            {advancedCommands.map((category, categoryIndex) => (
+              <div key={categoryIndex} className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <category.icon className="h-5 w-5 text-gray-600" />
+                  <h3 className="font-semibold text-gray-900">{category.category}</h3>
+                  <Badge className={category.color}>{category.commands.length} commands</Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {category.commands.map((command, commandIndex) => (
+                    <div key={commandIndex} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <p className="font-medium text-sm text-blue-600">"{command.text}"</p>
+                      <p className="text-xs text-gray-600 mt-1">{command.action}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <Separator />
-          <p className="text-sm text-muted-foreground">
-            **Note:** These advanced commands require the browser extension to be active on your Shopify store and the
-            Next.js app to be deployed and accessible. The system will attempt to interact with the Shopify DOM based on
-            these commands.
-          </p>
         </CardContent>
       </Card>
 

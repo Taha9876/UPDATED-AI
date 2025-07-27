@@ -1,352 +1,806 @@
+{% comment %}
+  This Liquid snippet injects the Voice Shopify Agent directly into your store.
+  It includes the UI, voice recognition, and DOM automation logic.
+  Make sure to replace `YOUR_DEPLOYED_NEXTJS_APP_URL` with your actual Vercel deployment URL.
+{% endcomment %}
+
+<style>
+  /* Basic styling for the voice agent UI */
+  #voice-agent-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+  }
+  #voice-agent-button {
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  #voice-agent-button:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+  }
+  #voice-agent-button.listening {
+    background-color: #f44336; /* Red */
+    animation: pulse 1.5s infinite;
+  }
+  #voice-agent-button.listening:hover {
+    background-color: #d32f2f;
+  }
+  #voice-agent-transcript, #voice-agent-response {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 10px 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 300px;
+    font-size: 14px;
+    color: #333;
+    text-align: right;
+  }
+  #voice-agent-transcript.hidden, #voice-agent-response.hidden {
+    display: none;
+  }
+  #voice-agent-processing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 12px;
+    color: #555;
+  }
+  .spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+
+<div id="voice-agent-container">
+  <div id="voice-agent-response" class="hidden"></div>
+  <div id="voice-agent-transcript" class="hidden"></div>
+  <div id="voice-agent-processing" style="display: none;">
+    <div class="spinner"></div>
+    <span>Processing...</span>
+  </div>
+  <button id="voice-agent-button">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+  </button>
+</div>
+
 <script>
-  // This script integrates voice commands with your Shopify store.
-  // It listens for voice input, sends it to your Next.js backend for processing,
-  // and then executes actions on your Shopify store based on the AI's response.
+  // IMPORTANT: Replace this with the URL of your deployed Next.js application
+  const NEXTJS_APP_URL = "https://your-deployed-nextjs-app.vercel.app";
+  // The Groq API key is now managed securely on your Next.js backend via environment variables.
 
-  // Set the Next.js app URL dynamically
-  // Replace 'YOUR_VERCEL_DEPLOYMENT_URL' with your actual Vercel deployment URL
-  // Example: window.NEXTJS_APP_URL = 'https://your-shopify-voice-app.vercel.app';
-  window.NEXTJS_APP_URL = '{{ environment.NEXTJS_APP_URL }}'; // This will be replaced by Vercel environment variable
+  class AdvancedShopifyController {
+    constructor() {
+      this.baseUrl = window.location.origin; // Dynamically get current origin
+      this.selectors = {
+        // Navigation
+        searchBox: 'input[type="search"], .search-input, [data-testid="search"], .header__search input, #Search',
+        searchButton: '.search-button, [type="submit"], .header__search button',
+        cartIcon: '.cart-icon, [data-testid="cart"], .header__icon--cart, .header__icons .header__icon:last-child, #cart-icon-bubble',
+        homeLink: 'a[href="/"], .header__heading-link, .logo, .header__heading',
+        catalogLink: 'a[href*="catalog"], a[href*="collection"], .header__inline-menu a:nth-child(2)',
+        contactLink: 'a[href*="contact"], .header__inline-menu a:last-child',
 
-  // IMPORTANT: This dynamically gets your Shopify store name from Liquid.
-  const SHOPIFY_STORE_NAME = "{{ shop.name }}"; // Dynamically get store name
+        // Products
+        productLinks: ".product-item a, .card__heading a, .product-card-wrapper a, .grid__item .card__content a, .product-link",
+        productTitles: ".product-title, .card__heading, .product-card__title, h3 a",
+        productPrices: ".price, .product-price, .card__price, .money",
+        productImages: ".product-image, .card__media img, .product-card__image img",
 
-  let recognition;
-  let isListening = false;
-  let voiceCommandButton; // Reference to the button that triggers listening
+        // Product page
+        addToCartButton: '.btn--add-to-cart, [name="add"], .product-form__cart-submit, .btn.product-form__cart-submit, #AddToCart',
+        quantityInput: 'input[name="quantity"], .quantity__input, #Quantity',
+        variantSelectors: '.product-form__input, .variant-input, select[name*="id"], .product-option select',
+        productDescription: ".product-description, .product__description, .rte",
+        productReviews: ".reviews, .product-reviews, .review-section",
 
-  // Inject the content script into the Shopify store
-  // This script will handle the communication with the Next.js backend
-  (function() {
-    const script = document.createElement('script');
-    script.src = window.NEXTJS_APP_URL + '/extension/content.js';
-    script.type = 'text/javascript';
-    document.head.appendChild(script);
-  })();
+        // Cart
+        cartItems: ".cart-item, .cart__item, .line-item",
+        cartQuantity: '.cart-quantity, .quantity-input, input[name*="quantity"]',
+        cartRemove: '.cart-remove, .remove-item, [data-action="remove"]',
+        cartTotal: ".cart-total, .totals__total, .cart__total",
+        checkoutButton: '.checkout-button, [data-testid="checkout"], .btn--checkout, .cart__checkout-button, #checkout',
+        discountInput: ".discount-input, #discount-code, .coupon-input",
+        discountButton: '.discount-button, .coupon-apply, [data-action="apply-discount"]',
 
-  // This part is for the browser extension's content.js to communicate with the Next.js app.
-  // The content.js script will listen for messages from the popup and forward them here.
-  // It also sends Shopify page context to the Next.js app.
+        // Filters and sorting
+        filterButtons: ".filter-button, .facet-checkbox, .collection-filter input",
+        sortSelect: ".sort-select, .collection-sort select, #sort-by",
+        priceFilter: '.price-filter, .price-range, input[name*="price"]',
+        colorFilter: '.color-filter, .color-swatch, input[name*="color"]',
+        sizeFilter: '.size-filter, .size-option, input[name*="size"]',
 
-  // You can add more Shopify-specific context here if needed,
-  // which will be sent to your Next.js app's /api/process-command endpoint.
-  window.shopifyPageContext = {
-    url: window.location.href,
-    pageType: document.body.classList.contains('template-index') ? 'home' :
-              document.body.classList.contains('template-product') ? 'product' :
-              document.body.classList.contains('template-collection') ? 'collection' :
-              document.body.classList.contains('template-cart') ? 'cart' :
-              window.location.pathname.includes('/checkout') ? 'checkout' : 'unknown',
-    cartCount: parseInt(document.querySelector('.cart-count, [data-cart-count]')?.innerText.trim() || '0'),
-    // Add more specific selectors for product details, collection filters, etc.
-    // Example: productName: document.querySelector('.product-single__title')?.innerText.trim(),
-  };
+        // Pagination
+        nextPage: '.pagination__next, .next-page, a[rel="next"]',
+        prevPage: '.pagination__prev, .prev-page, a[rel="prev"]',
+        pageNumbers: ".pagination__item, .page-number",
 
-  console.log("Shopify Voice Agent Liquid Snippet Loaded. Next.js App URL:", window.NEXTJS_APP_URL);
+        // Checkout
+        shippingForm: ".shipping-form, #shipping-address",
+        paymentForm: ".payment-form, #payment-method",
+        orderButton: ".order-button, #submit-order, .btn--complete-order",
 
-  // Function to speak a message
-  function speak(message) {
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
-  }
+        // General
+        backButton: ".breadcrumb a, .back-link, .header__heading-link",
+        loadingIndicator: ".loading, .spinner, .loader",
+        errorMessage: ".error, .alert-error, .notice--error",
+        successMessage: ".success, .alert-success, .notice--success",
+      };
 
-  // Function to find and click an element by text content
-  function clickElementByText(text, selectorType = 'button') {
-    let elements;
-    if (selectorType === 'button') {
-      elements = document.querySelectorAll('button');
-    } else if (selectorType === 'link') {
-      elements = document.querySelectorAll('a');
-    } else { // Default to checking all elements for text
-      elements = document.querySelectorAll('button, a, span, div, p, h1, h2, h3, h4, h5, h6');
+      this.currentContext = this.getPageContext();
     }
 
-    for (const el of elements) {
-      if (el.textContent && el.textContent.trim().toLowerCase().includes(text.toLowerCase())) {
-        console.log(`Clicking element with text: "${text}"`, el);
-        el.click();
-        speak(`Clicked ${text}.`);
-        return true;
+    getPageContext() {
+      const url = window.location.href;
+      const pathname = window.location.pathname;
+
+      let pageType = "unknown";
+      if (pathname === "/" || pathname === "") pageType = "homepage";
+      else if (pathname.includes("/products/")) pageType = "product";
+      else if (pathname.includes("/collections/")) pageType = "collection";
+      else if (pathname.includes("/cart")) pageType = "cart";
+      else if (pathname.includes("/checkout")) pageType = "checkout";
+      else if (pathname.includes("/search")) pageType = "search";
+      else if (pathname.includes("/contact")) pageType = "contact";
+
+      return {
+        url,
+        pathname,
+        pageType,
+        title: document.title,
+        hasProducts: !!document.querySelector(this.selectors.productLinks),
+        cartCount: this.getCartCount(),
+        isLoading: !!document.querySelector(this.selectors.loadingIndicator),
+        hasError: !!document.querySelector(this.selectors.errorMessage),
+      };
+    }
+
+    getCartCount() {
+      const cartBadge = document.querySelector(".cart-count, .cart-badge, .header__icon--cart .badge");
+      return cartBadge ? Number.parseInt(cartBadge.textContent) || 0 : 0;
+    }
+
+    async waitForElement(selector, timeout = 5000) {
+      return new Promise((resolve, reject) => {
+        const element = document.querySelector(selector);
+        if (element) {
+          resolve(element);
+          return;
+        }
+
+        const observer = new MutationObserver((mutations, obs) => {
+          const element = document.querySelector(selector);
+          if (element) {
+            obs.disconnect();
+            resolve(element);
+          }
+        });
+
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
+
+        setTimeout(() => {
+          observer.disconnect();
+          reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+        }, timeout);
+      });
+    }
+
+    async navigate(destination, target = "_self") {
+      switch (destination) {
+        case "homepage":
+        case "home":
+          if (target === "_blank") {
+            window.open(this.baseUrl, "_blank");
+          } else {
+            window.location.href = this.baseUrl;
+          }
+          break;
+        case "catalog":
+        case "collection":
+          const catalogLink = document.querySelector(this.selectors.catalogLink);
+          if (catalogLink) {
+            if (target === "_blank") {
+              window.open(catalogLink.href, "_blank");
+            } else {
+              catalogLink.click();
+            }
+          } else {
+            window.location.href = `${this.baseUrl}/collections/all`;
+          }
+          break;
+        case "cart":
+          await this.openCart();
+          break;
+        case "checkout":
+          window.location.href = `${this.baseUrl}/checkout`;
+          break;
+        case "back":
+          window.history.back();
+          break;
+        case "forward":
+          window.history.forward();
+          break;
+        default:
+          if (destination.startsWith("http")) {
+            if (target === "_blank") {
+              window.open(destination, "_blank");
+            } else {
+              window.location.href = destination;
+            }
+          }
       }
     }
-    console.warn(`Element with text "${text}" not found.`);
-    speak(`Could not find an element to click with the text ${text}.`);
-    return false;
-  }
 
-  // Function to fill a form field
-  function fillFormField(fieldName, value) {
-    const inputs = document.querySelectorAll('input, textarea');
-    for (const input of inputs) {
-      const label = input.labels && input.labels[0] ? input.labels[0].textContent.toLowerCase() : '';
-      const placeholder = input.placeholder ? input.placeholder.toLowerCase() : '';
-      const name = input.name ? input.name.toLowerCase() : '';
-      const id = input.id ? input.id.toLowerCase() : '';
+    async search(query, filters = {}) {
+      const searchBox = document.querySelector(this.selectors.searchBox);
+      if (!searchBox) return false;
 
-      if (
-        label.includes(fieldName.toLowerCase()) ||
-        placeholder.includes(fieldName.toLowerCase()) ||
-        name.includes(fieldName.toLowerCase()) ||
-        id.includes(fieldName.toLowerCase())
-      ) {
-        input.value = value;
-        console.log(`Filled field "${fieldName}" with "${value}"`);
-        speak(`Filled ${fieldName} with ${value}.`);
-        return true;
+      searchBox.value = "";
+      searchBox.focus();
+
+      for (const char of query) {
+        searchBox.value += char;
+        searchBox.dispatchEvent(new Event("input", { bubbles: true }));
+        await this.wait(50);
       }
-    }
-    console.warn(`Form field "${fieldName}" not found.`);
-    speak(`Could not find a field named ${fieldName}.`);
-    return false;
-  }
 
-  // Function to submit a form
-  function submitForm(formName) {
-    let form;
-    if (formName) {
-      form = document.querySelector(`form[name*="${formName}" i], form[id*="${formName}" i], form[class*="${formName}" i]`);
-    } else {
-      // Try to find a common form like a search form or contact form if no specific name
-      form = document.querySelector('form[action*="/search"], form[action*="/contact"]');
-    }
+      const searchButton = document.querySelector(this.selectors.searchButton);
+      if (searchButton) {
+        searchButton.click();
+      } else {
+        const form = searchBox.closest("form");
+        if (form) {
+          form.submit();
+        } else {
+          searchBox.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        }
+      }
 
-    if (form) {
-      console.log(`Submitting form:`, form);
-      form.submit();
-      speak(`Submitting the form.`);
+      await this.wait(2000);
+      if (Object.keys(filters).length > 0) {
+        await this.applyFilters(filters);
+      }
+
       return true;
     }
-    console.warn(`Form "${formName || 'unspecified'}" not found.`);
-    speak(`Could not find a form to submit.`);
-    return false;
-  }
 
-  // Function to handle scrolling
-  function handleScroll(direction) {
-    if (direction === 'down') {
-      window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
-      speak('Scrolling down.');
-    } else if (direction === 'up') {
-      window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' });
-      speak('Scrolling up.');
-    } else if (direction === 'top') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      speak('Scrolling to the top.');
-    } else if (direction === 'bottom') {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      speak('Scrolling to the bottom.');
-    }
-  }
-
-  // Function to process the AI's JSON response
-  async function executeAction(actionData) {
-    console.log('Executing action:', actionData);
-    switch (actionData.action) {
-      case 'navigate':
-        let url = '/';
-        switch (actionData.target) {
-          case 'home': url = '/'; break;
-          case 'products': url = '/collections/all'; break;
-          case 'cart': url = '/cart'; break;
-          case 'checkout': url = '/checkout'; break;
-          case 'search': url = '/search'; break;
-          case 'collections': url = '/collections'; break;
-          case 'contact': url = '/pages/contact'; break; // Assuming a contact page
-          case 'about': url = '/pages/about'; break;     // Assuming an about page
-          default: speak(`I can't navigate to ${actionData.target}.`); return;
+    async applyFilters(filters) {
+      for (const [filterType, value] of Object.entries(filters)) {
+        switch (filterType) {
+          case "price":
+            await this.filterByPrice(value);
+            break;
+          case "color":
+            await this.filterByColor(value);
+            break;
+          case "size":
+            await this.filterBySize(value);
+            break;
+          case "category":
+            await this.filterByCategory(value);
+            break;
         }
-        speak(`Navigating to ${actionData.target}.`);
-        window.location.href = url;
-        break;
-
-      case 'search':
-        const searchInput = document.querySelector('input[name="q"], input[type="search"]');
-        if (searchInput) {
-          searchInput.value = actionData.query;
-          searchInput.form ? searchInput.form.submit() : console.warn('Search input has no parent form.');
-          speak(`Searching for ${actionData.query}.`);
-        } else {
-          speak(`Could not find a search bar to search for ${actionData.query}.`);
-          window.location.href = `/search?q=${encodeURIComponent(actionData.query)}`; // Fallback to direct URL
-        }
-        break;
-
-      case 'add_to_cart':
-        // This is a complex action that often requires specific product IDs or variants.
-        // For a simple demo, we'll assume direct navigation to product page and then clicking add to cart.
-        // In a real scenario, you'd need more sophisticated DOM manipulation or Shopify AJAX API calls.
-        speak(`Attempting to add ${actionData.quantity || 1} of ${actionData.product_name} to cart.`);
-        // Example: Navigate to a product page first, then try to click add to cart
-        // This is highly dependent on your theme's structure.
-        window.location.href = `/products/${actionData.product_name.toLowerCase().replace(/\s/g, '-')}`;
-        // You would then need a way to automatically click the add to cart button on that page.
-        // This might require a more advanced content script or a Shopify AJAX API call.
-        break;
-
-      case 'remove_from_cart':
-        speak(`Attempting to remove ${actionData.quantity || 1} of ${actionData.product_name} from cart.`);
-        // This would require finding the specific item in the cart and clicking a remove button
-        // or using Shopify's AJAX API for cart updates.
-        window.location.href = '/cart'; // Go to cart page first
-        break;
-
-      case 'update_cart_quantity':
-        speak(`Attempting to update ${actionData.product_name} quantity to ${actionData.new_quantity}.`);
-        window.location.href = '/cart'; // Go to cart page first
-        break;
-
-      case 'clear_cart':
-        speak('Clearing your cart.');
-        // This would typically involve a form submission or AJAX call to clear the cart.
-        // Example: window.location.href = '/cart/clear'; (if your theme supports it)
-        break;
-
-      case 'checkout':
-        speak('Proceeding to checkout.');
-        window.location.href = '/checkout';
-        break;
-
-      case 'apply_discount':
-        speak(`Applying discount code ${actionData.code}.`);
-        // This would involve finding the discount code input field and submitting it,
-        // typically on the cart or checkout page.
-        break;
-
-      case 'scroll':
-        handleScroll(actionData.direction);
-        break;
-
-      case 'click':
-        clickElementByText(actionData.value, actionData.selector_type);
-        break;
-
-      case 'fill_field':
-        fillFormField(actionData.field_name, actionData.value);
-        break;
-
-      case 'submit_form':
-        submitForm(actionData.form_name);
-        break;
-
-      case 'respond':
-        speak(actionData.message);
-        break;
-
-      default:
-        speak("I'm not sure how to perform that action.");
-        console.warn('Unknown action:', actionData.action);
+        await this.wait(1000);
+      }
     }
-  }
 
-  // Function to send voice command to Next.js backend
-  async function processVoiceCommand(command) {
-    try {
-      const response = await fetch(`${window.NEXTJS_APP_URL}/api/process-command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command, shopName: SHOPIFY_STORE_NAME, shopifyPageContext: window.shopifyPageContext }),
-      });
+    async filterByPrice(priceRange) {
+      const priceFilters = document.querySelectorAll(this.selectors.priceFilter);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process command on backend.');
+      if (typeof priceRange === "string") {
+        const priceButton = Array.from(document.querySelectorAll(".price-filter, .facet-checkbox")).find((btn) =>
+          btn.textContent.toLowerCase().includes(priceRange.toLowerCase()),
+        );
+        if (priceButton) priceButton.click();
+      } else if (typeof priceRange === "object" && priceRange.min !== undefined) {
+        const minInput = document.querySelector('input[name*="price_min"], input[placeholder*="min"]');
+        const maxInput = document.querySelector('input[name*="price_max"], input[placeholder*="max"]');
+
+        if (minInput && priceRange.min) {
+          minInput.value = priceRange.min;
+          minInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        if (maxInput && priceRange.max) {
+          maxInput.value = priceRange.max;
+          maxInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+
+    async filterByColor(color) {
+      const colorOptions = document.querySelectorAll(this.selectors.colorFilter);
+      const colorOption = Array.from(colorOptions).find(
+        (option) =>
+          option.value?.toLowerCase().includes(color.toLowerCase()) ||
+          option.textContent?.toLowerCase().includes(color.toLowerCase()),
+      );
+      if (colorOption) colorOption.click();
+    }
+
+    async filterBySize(size) {
+      const sizeOptions = document.querySelectorAll(this.selectors.sizeFilter);
+      const sizeOption = Array.from(sizeOptions).find(
+        (option) =>
+          option.value?.toLowerCase().includes(size.toLowerCase()) ||
+          option.textContent?.toLowerCase().includes(size.toLowerCase()),
+      );
+      if (sizeOption) sizeOption.click();
+    }
+
+    async sort(by, order = "asc") {
+      const sortSelect = document.querySelector(this.selectors.sortSelect);
+      if (!sortSelect) return false;
+
+      const sortValue = `${by}-${order}`;
+      const option = Array.from(sortSelect.options).find(
+        (opt) => opt.value.includes(by) || opt.textContent.toLowerCase().includes(by),
+      );
+
+      if (option) {
+        sortSelect.value = option.value;
+        sortSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        return true;
+      }
+      return false;
+    }
+
+    async addToCart(productId = null, quantity = 1, variant = null) {
+      if (this.currentContext.pageType === "product") {
+        const quantityInput = document.querySelector(this.selectors.quantityInput);
+        if (quantityInput && quantity !== 1) {
+          quantityInput.value = quantity;
+          quantityInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        if (variant) {
+          await this.selectVariant(variant);
+        }
+
+        const addButton = document.querySelector(this.selectors.addToCartButton);
+        if (addButton && !addButton.disabled) {
+          addButton.click();
+          await this.wait(2000);
+          return true;
+        }
+      } else if (productId) {
+        const productElement = document.querySelector(`[data-product-id="${productId}"]`);
+        if (productElement) {
+          const addButton = productElement.querySelector(this.selectors.addToCartButton);
+          if (addButton) {
+            addButton.click();
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    async selectVariant(variant) {
+      const variantSelectors = document.querySelectorAll(this.selectors.variantSelectors);
+
+      for (const selector of variantSelectors) {
+        if (selector.tagName === "SELECT") {
+          const option = Array.from(selector.options).find((opt) =>
+            opt.textContent.toLowerCase().includes(variant.toLowerCase()),
+          );
+          if (option) {
+            selector.value = option.value;
+            selector.dispatchEvent(new Event("change", { bubbles: true }));
+            await this.wait(500);
+          }
+        } else if (selector.type === "radio") {
+          if (
+            selector.value.toLowerCase().includes(variant.toLowerCase()) ||
+            selector.nextElementSibling?.textContent.toLowerCase().includes(variant.toLowerCase())
+          ) {
+            selector.click();
+            await this.wait(500);
+          }
+        }
+      }
+    }
+
+    async openCart() {
+      const cartIcon = document.querySelector(this.selectors.cartIcon);
+      if (cartIcon) {
+        cartIcon.click();
+        await this.wait(1000);
+      } else {
+        window.location.href = `${this.baseUrl}/cart`;
+      }
+    }
+
+    async updateQuantity(quantity, productId = null) {
+      if (this.currentContext.pageType !== "cart") {
+        await this.openCart();
       }
 
-      const data = await response.json();
-      console.log('AI Response:', data);
-      executeAction(data);
+      const quantityInputs = document.querySelectorAll(this.selectors.cartQuantity);
 
-    } catch (error) {
-      console.error('Error sending command to backend:', error);
-      speak("I'm sorry, I encountered an error processing your command. Please try again.");
+      if (productId) {
+        const productRow = document.querySelector(`[data-product-id="${productId}"]`);
+        if (productRow) {
+          const quantityInput = productRow.querySelector(this.selectors.cartQuantity);
+          if (quantityInput) {
+            quantityInput.value = quantity;
+            quantityInput.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+      } else if (quantityInputs.length > 0) {
+        quantityInputs[0].value = quantity;
+        quantityInputs[0].dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+
+    async removeFromCart(productId = null) {
+      if (this.currentContext.pageType !== "cart") {
+        await this.openCart();
+      }
+
+      if (productId) {
+        const productRow = document.querySelector(`[data-product-id="${productId}"]`);
+        if (productRow) {
+          const removeButton = productRow.querySelector(this.selectors.cartRemove);
+          if (removeButton) removeButton.click();
+        }
+      } else {
+        const removeButtons = document.querySelectorAll(this.selectors.cartRemove);
+        for (const button of removeButtons) {
+          button.click();
+          await this.wait(1000);
+        }
+      }
+    }
+
+    async applyDiscount(code) {
+      if (this.currentContext.pageType !== "cart") {
+        await this.openCart();
+      }
+
+      const discountInput = document.querySelector(this.selectors.discountInput);
+      const discountButton = document.querySelector(this.selectors.discountButton);
+
+      if (discountInput && discountButton) {
+        discountInput.value = code;
+        discountInput.dispatchEvent(new Event("input", { bubbles: true }));
+        discountButton.click();
+        await this.wait(2000);
+        return true;
+      }
+      return false;
+    }
+
+    async checkout(skipToPayment = false, fillShipping = {}) {
+      if (this.currentContext.pageType !== "cart") {
+        await this.openCart();
+      }
+
+      const checkoutButton = document.querySelector(this.selectors.checkoutButton);
+      if (checkoutButton) {
+        checkoutButton.click();
+        await this.wait(3000);
+
+        if (skipToPayment && Object.keys(fillShipping).length > 0) {
+          await this.fillShippingForm(fillShipping);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    async fillShippingForm(shippingData) {
+      const form = document.querySelector(this.selectors.shippingForm);
+      if (!form) return false;
+
+      for (const [field, value] of Object.entries(shippingData)) {
+        const input = form.querySelector(`input[name*="${field}"], select[name*="${field}"]`);
+        if (input) {
+          input.value = value;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          await this.wait(200);
+        }
+      }
+      return true;
+    }
+
+    async scroll(direction, amount = null) {
+      let scrollAmount = 0;
+
+      switch (direction) {
+        case "up":
+          scrollAmount = amount || -window.innerHeight * 0.8;
+          break;
+        case "down":
+          scrollAmount = amount || window.innerHeight * 0.8;
+          break;
+        case "top":
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        case "bottom":
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+          return;
+      }
+
+      window.scrollBy({ top: scrollAmount, behavior: "smooth" });
+    }
+
+    async hover(selector) {
+      const element = document.querySelector(selector);
+      if (element) {
+        element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+        return true;
+      }
+      return false;
+    }
+
+    getText(selector) {
+      const element = document.querySelector(selector);
+      return element ? element.textContent.trim() : null;
+    }
+
+    setAttribute(selector, attribute, value) {
+      const element = document.querySelector(selector);
+      if (element) {
+        element.setAttribute(attribute, value);
+        return true;
+      }
+      return false;
+    }
+
+    removeElement(selector) {
+      const element = document.querySelector(selector);
+      if (element) {
+        element.remove();
+        return true;
+      }
+      return false;
+    }
+
+    async wait(duration) {
+      return new Promise((resolve) => setTimeout(resolve, duration));
+    }
+
+    async executeAction(action) {
+      try {
+        this.currentContext = this.getPageContext(); // Update context before action
+
+        switch (action.type) {
+          case "navigate":
+            return await this.navigate(action.url, action.target);
+          case "search":
+            return await this.search(action.query, action.filters);
+          case "click":
+            const element = document.querySelector(action.selector);
+            if (element) {
+              element.click();
+              if (action.waitFor) {
+                await this.waitForElement(action.waitFor);
+              }
+              return true;
+            }
+            return false;
+          case "addToCart":
+            return await this.addToCart(action.productId, action.quantity, action.variant);
+          case "fillForm":
+            return await this.fillForm(action.fields, action.submit);
+          case "scroll":
+            return await this.scroll(action.direction, action.amount);
+          case "filter":
+            return await this.applyFilters({ [action.category]: action.value });
+          case "sort":
+            return await this.sort(action.by, action.order);
+          case "hover":
+            return await this.hover(action.selector);
+          case "wait":
+            await this.wait(action.duration);
+            return true;
+          case "getText":
+            return this.getText(action.selector);
+          case "setAttribute":
+            return this.setAttribute(action.selector, action.attribute, action.value);
+          case "removeElement":
+            return this.removeElement(action.selector);
+          case "checkout":
+            return await this.checkout(action.skipToPayment, action.fillShipping);
+          case "applyDiscount":
+            return await this.applyDiscount(action.code);
+          case "selectVariant":
+            return await this.selectVariant(action.value);
+          case "updateQuantity":
+            return await this.updateQuantity(action.quantity, action.productId);
+          case "removeFromCart":
+            return await this.removeFromCart(action.productId);
+          case "back":
+            window.history.back();
+            return true;
+          default:
+            console.warn("Unknown action type:", action.type);
+            return false;
+        }
+      } catch (error) {
+        console.error("Error executing action:", error);
+        return false;
+      }
+    }
+
+    async executeActionSequence(actions) {
+      const results = [];
+      for (const action of actions) {
+        const result = await this.executeAction(action);
+        results.push(result);
+        await this.wait(500);
+      }
+      return results;
     }
   }
 
-  // Initialize Speech Recognition
-  function initializeSpeechRecognition() {
-    if ('webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition;
+  // Initialize the advanced controller
+  const domController = new AdvancedShopifyController();
+
+  // Voice Agent UI elements
+  const voiceButton = document.getElementById('voice-agent-button');
+  const transcriptDisplay = document.getElementById('voice-agent-transcript');
+  const responseDisplay = document.getElementById('voice-agent-response');
+  const processingIndicator = document.getElementById('voice-agent-processing');
+
+  let isListening = false;
+  let recognition = null;
+  let synth = null;
+
+  // Initialize Speech Recognition and Synthesis
+  function initializeVoiceAgent() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
       recognition = new SpeechRecognition();
-      recognition.continuous = false; // Listen for a single utterance
-      recognition.interimResults = false; // Only return final results
+      recognition.continuous = false; // Listen for single command
+      recognition.interimResults = false; // Only final results
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
         isListening = true;
-        console.log('Listening for voice commands...');
-        if (voiceCommandButton) {
-          voiceCommandButton.textContent = 'Listening...';
-          voiceCommandButton.style.backgroundColor = 'red';
-        }
+        voiceButton.classList.add('listening');
+        transcriptDisplay.classList.remove('hidden');
+        transcriptDisplay.textContent = 'Listening...';
+        responseDisplay.classList.add('hidden');
+        processingIndicator.style.display = 'none';
       };
 
       recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript;
-        console.log('Voice command heard:', speechResult);
-        processVoiceCommand(speechResult);
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        isListening = false;
-        if (voiceCommandButton) {
-          voiceCommandButton.textContent = 'Voice Command';
-          voiceCommandButton.style.backgroundColor = '';
-        }
-        speak(`Speech recognition error: ${event.error}.`);
+        const transcript = event.results[0][0].transcript;
+        transcriptDisplay.textContent = `You said: "${transcript}"`;
+        processVoiceCommand(transcript);
       };
 
       recognition.onend = () => {
         isListening = false;
-        console.log('Stopped listening.');
-        if (voiceCommandButton) {
-          voiceCommandButton.textContent = 'Voice Command';
-          voiceCommandButton.style.backgroundColor = '';
+        voiceButton.classList.remove('listening');
+        if (!processingIndicator.style.display || processingIndicator.style.display === 'none') {
+          transcriptDisplay.classList.add('hidden');
         }
       };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        transcriptDisplay.textContent = `Error: ${event.error}`;
+        speak('Sorry, I could not understand that. Please try again.');
+        isListening = false;
+        voiceButton.classList.remove('listening');
+        processingIndicator.style.display = 'none';
+      };
     } else {
-      console.warn('Web Speech API is not supported in this browser.');
-      speak('Your browser does not support the Web Speech API. Please use Chrome or Edge.');
+      console.warn('Speech Recognition not supported in this browser.');
+      voiceButton.style.display = 'none'; // Hide button if not supported
+      const container = document.getElementById('voice-agent-container');
+      if (container) {
+        container.innerHTML = '<div style="background-color: #ffe0b2; padding: 10px; border-radius: 8px; font-size: 12px; color: #e65100;">Speech recognition not supported in this browser. Please use Chrome or Edge.</div>';
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      synth = window.speechSynthesis;
+    } else {
+      console.warn('Speech Synthesis not supported in this browser.');
     }
   }
 
-  // Create and append the voice command button to the Shopify store
-  function createVoiceCommandButton() {
-    voiceCommandButton = document.createElement('button');
-    voiceCommandButton.textContent = 'Voice Command';
-    voiceCommandButton.style.position = 'fixed';
-    voiceCommandButton.style.bottom = '20px';
-    voiceCommandButton.style.right = '20px';
-    voiceCommandButton.style.padding = '10px 15px';
-    voiceCommandButton.style.backgroundColor = '#007bff';
-    voiceCommandButton.style.color = 'white';
-    voiceCommandButton.style.border = 'none';
-    voiceCommandButton.style.borderRadius = '5px';
-    voiceCommandButton.style.cursor = 'pointer';
-    voiceCommandButton.style.zIndex = '10000';
-    voiceCommandButton.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-
-    voiceCommandButton.addEventListener('click', () => {
-      if (!isListening) {
-        if (recognition) {
-          recognition.start();
-        } else {
-          speak('Speech recognition is not initialized. Please refresh the page or use a compatible browser.');
-        }
-      } else {
-        recognition.stop();
-      }
-    });
-
-    document.body.appendChild(voiceCommandButton);
+  function speak(text) {
+    if (synth) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      utterance.pitch = 1;
+      synth.speak(utterance);
+    }
   }
 
-  // Run on DOMContentLoaded to ensure elements are available
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeSpeechRecognition();
-    createVoiceCommandButton();
+  async function processVoiceCommand(command) {
+    processingIndicator.style.display = 'flex';
+    responseDisplay.classList.add('hidden');
+
+    try {
+      const response = await fetch(`${NEXTJS_APP_URL}/api/process-command`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          command: command,
+          shopifyUrl: window.location.origin, // Pass current Shopify URL
+          pageContext: domController.getPageContext(),
+        }),
+      });
+
+      const data = await response.json();
+      responseDisplay.textContent = `AI: ${data.response}`;
+      responseDisplay.classList.remove('hidden');
+      speak(data.response);
+
+      if (data.action) {
+        await domController.executeAction(data.action);
+      }
+      if (data.followUp && Array.isArray(data.followUp)) {
+        for (const action of data.followUp) {
+          await domController.executeAction(action);
+          await domController.wait(1000); // Wait between actions
+        }
+      }
+    } catch (error) {
+      console.error('Error processing command:', error);
+      const errorMsg = 'Sorry, I encountered an error processing your command.';
+      responseDisplay.textContent = `AI: ${errorMsg}`;
+      responseDisplay.classList.remove('hidden');
+      speak(errorMsg);
+    } finally {
+      processingIndicator.style.display = 'none';
+      transcriptDisplay.classList.add('hidden'); // Hide transcript after processing
+    }
+  }
+
+  // Event listener for the voice button
+  voiceButton.addEventListener('click', () => {
+    if (isListening) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
   });
+
+  // Initialize on page load
+  initializeVoiceAgent();
 </script>

@@ -2,13 +2,11 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Shopify Voice Automation</title>
   <style>
     body {
       width: 300px;
       padding: 20px;
       font-family: Arial, sans-serif;
-      text-align: center;
     }
     .header {
       text-align: center;
@@ -19,8 +17,6 @@
       border-radius: 5px;
       margin-bottom: 15px;
       text-align: center;
-      margin-top: 10px;
-      font-weight: bold;
     }
     .status.active {
       background: #d4edda;
@@ -38,26 +34,19 @@
       gap: 10px;
     }
     button {
-      padding: 10px 15px;
-      margin: 5px;
-      cursor: pointer;
+      padding: 10px;
       border: none;
       border-radius: 5px;
-      background-color: #007bff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .primary {
+      background: #007bff;
       color: white;
     }
-    button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-    }
-    #transcript {
-      margin-top: 10px;
-      padding: 8px;
-      border: 1px solid #eee;
-      background-color: #f9f9f9;
-      min-height: 50px;
-      text-align: left;
-      word-wrap: break-word;
+    .secondary {
+      background: #6c757d;
+      color: white;
     }
     .commands {
       margin-top: 20px;
@@ -77,16 +66,17 @@
 </head>
 <body>
   <div class="header">
-    <h2>Voice Control</h2>
+    <h3>🎤 Voice Shopify Agent</h3>
+  </div>
+  
+  <div id="status" class="status inactive">
+    Extension Ready
   </div>
   
   <div class="controls">
-    <button id="startButton">Start Listening</button>
-    <button id="stopButton" disabled>Stop Listening</button>
+    <button id="openDashboard" class="primary">Open Dashboard</button>
+    <button id="testConnection" class="secondary">Test Connection</button>
   </div>
-  
-  <div id="status" class="status">Ready</div>
-  <div id="transcript"></div>
   
   <div class="commands">
     <h4>Quick Commands:</h4>
@@ -99,6 +89,25 @@
     </ul>
   </div>
 
-  <script src="popup.js"></script>
+  <script>
+    document.getElementById('openDashboard').addEventListener('click', () => {
+      chrome.tabs.create({ url: 'http://localhost:3000' });
+    });
+
+    document.getElementById('testConnection').addEventListener('click', () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'TEST_CONNECTION' }, (response) => {
+          const status = document.getElementById('status');
+          if (response && response.success) {
+            status.className = 'status active';
+            status.textContent = 'Connected & Ready';
+          } else {
+            status.className = 'status inactive';
+            status.textContent = 'Connection Failed';
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
