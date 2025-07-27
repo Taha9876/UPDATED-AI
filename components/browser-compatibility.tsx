@@ -1,50 +1,50 @@
-"use client"
+/**
+ * v0 by Vercel.
+ * @see https://v0.dev/t/20240727134324
+ * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
+ */
+import { CardTitle, CardDescription, CardHeader, CardContent, Card } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Progress } from "@/components/ui/progress"
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { CheckCircle, XCircle } from "lucide-react"
-import { useEffect, useState } from "react"
-
-export default function BrowserCompatibility() {
-  const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false)
-  const [isSpeechSynthesisSupported, setIsSpeechSynthesisSupported] = useState(false)
-
-  useEffect(() => {
-    setIsSpeechRecognitionSupported("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
-    setIsSpeechSynthesisSupported("speechSynthesis" in window)
-  }, [])
-
+export function BrowserCompatibility() {
   return (
-    <Card>
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Browser Compatibility</CardTitle>
+        <CardDescription>Check and configure browser compatibility for the voice automation extension.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          This application relies on the Web Speech API, which has varying support across browsers.
-        </p>
-        <div className="grid gap-2">
-          <div className="flex items-center gap-2">
-            {isSpeechRecognitionSupported ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-500" />
-            )}
-            <span className="text-sm">Speech Recognition (Microphone Input)</span>
+      <CardContent className="grid gap-6">
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="chrome-support">Chrome Support</Label>
+            <Switch defaultChecked id="chrome-support" />
           </div>
-          <div className="flex items-center gap-2">
-            {isSpeechSynthesisSupported ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-500" />
-            )}
-            <span className="text-sm">Speech Synthesis (Voice Output)</span>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="firefox-support">Firefox Support</Label>
+            <Switch id="firefox-support" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="edge-support">Edge Support</Label>
+            <Switch id="edge-support" />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          **Recommended Browser:** Google Chrome offers the most comprehensive and reliable support for the Web Speech
-          API. Other browsers like Microsoft Edge also have good support. Firefox and Safari have limited or no support
-          for Speech Recognition.
-        </p>
+        <div className="grid gap-2">
+          <Label>Overall Compatibility Score</Label>
+          <Progress value={75} />
+          <p className="text-sm text-muted-foreground">
+            75% of major browsers are supported. Consider adding support for more browsers to reach a wider audience.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          <Label>Troubleshooting Tips</Label>
+          <ul className="list-disc pl-5 text-sm text-muted-foreground">
+            <li>Ensure your browser is up to date.</li>
+            <li>Check browser extension permissions.</li>
+            <li>Disable conflicting extensions.</li>
+          </ul>
+        </div>
       </CardContent>
     </Card>
   )

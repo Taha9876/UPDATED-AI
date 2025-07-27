@@ -7,7 +7,7 @@ export const useMobile = () => {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768) // Tailwind's 'md' breakpoint
+      setIsMobile(window.innerWidth < 768) // Adjust breakpoint as needed
     }
 
     checkMobile()

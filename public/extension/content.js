@@ -12,6 +12,7 @@ class AdvancedShopifyController {
       homeLink: 'a[href="/"], .header__heading-link, .logo, .header__heading',
       catalogLink: 'a[href*="catalog"], a[href*="collection"], .header__inline-menu a:nth-child(2)',
       contactLink: 'a[href*="contact"], .header__inline-menu a:last-child',
+      accountLink: 'a[href*="account"], .header__account-link',
 
       // Products
       productLinks:
@@ -79,6 +80,7 @@ class AdvancedShopifyController {
     else if (pathname.includes("/checkout")) pageType = "checkout"
     else if (pathname.includes("/search")) pageType = "search"
     else if (pathname.includes("/contact")) pageType = "contact"
+    else if (pathname.includes("/account")) pageType = "account"
 
     return {
       url,
@@ -86,7 +88,7 @@ class AdvancedShopifyController {
       pageType,
       title: document.title,
       hasProducts: !!document.querySelector(this.selectors.productLinks),
-      cartCount: this.getCartCount(),
+      cartCount: this.getCartCount(), // Ensure cartCount is always present
       isLoading: !!document.querySelector(this.selectors.loadingIndicator),
       hasError: !!document.querySelector(this.selectors.errorMessage),
     }
@@ -95,7 +97,7 @@ class AdvancedShopifyController {
   // Get cart count
   getCartCount() {
     const cartBadge = document.querySelector(".cart-count, .cart-badge, .header__icon--cart .badge")
-    return cartBadge ? Number.parseInt(cartBadge.textContent) || 0 : 0
+    return cartBadge ? Number.parseInt(cartBadge.textContent) || 0 : 0 // Default to 0 if not found
   }
 
   // Wait for element to appear
@@ -162,6 +164,9 @@ class AdvancedShopifyController {
         break
       case "forward":
         window.history.forward()
+        break
+      case "account":
+        window.location.href = `${this.baseUrl}/account`
         break
       default:
         if (destination.startsWith("http")) {
@@ -592,6 +597,15 @@ class AdvancedShopifyController {
         case "back":
           window.history.back()
           return true
+        case "compareProducts":
+          console.warn("Product comparison not implemented in demo.")
+          return false
+        case "readReviews":
+          console.warn("Reading reviews not implemented in demo.")
+          return false
+        case "wishlist":
+          console.warn("Wishlist functionality not implemented in demo.")
+          return false
         default:
           console.warn("Unknown action type:", action.type)
           return false
@@ -628,8 +642,8 @@ async function handleVoiceCommand(command) {
 
   // Send the command to your Next.js API route
   const NEXTJS_APP_URL = window.NEXTJS_APP_URL || "http://localhost:3000" // Fallback for development
-  const shopifyUrl = window.location.href
-  const pageContext = extractPageContext() // Extract relevant context from the current page
+  const shopifyUrl = window.location.href // Get current Shopify URL
+  const pageContext = domController.getPageContext() // Use the controller's method to get context
 
   try {
     const response = await fetch(`${NEXTJS_APP_URL}/api/process-command`, {
@@ -637,7 +651,7 @@ async function handleVoiceCommand(command) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ command, shopifyUrl, pageContext }),
+      body: JSON.stringify({ command, shopifyUrl, pageContext }), // Send shopifyUrl and pageContext
     })
 
     if (!response.ok) {
@@ -649,48 +663,19 @@ async function handleVoiceCommand(command) {
     console.log("AI Response:", data)
 
     // Speak the AI's response
-    speak(data.speech)
+    speak(data.response) // Assuming AI response has a 'response' field for speech
 
     // Execute the action based on AI's response
-    executeAction(data.action)
+    if (data.action) {
+      domController.executeAction(data.action) // Use domController to execute actions
+    }
+    if (data.followUp && Array.isArray(data.followUp)) {
+      domController.executeActionSequence(data.followUp)
+    }
   } catch (error) {
     console.error("Error processing voice command:", error)
     speak("Sorry, I encountered an error. Please try again.")
   }
-}
-
-// Function to extract relevant page context
-function extractPageContext() {
-  const context = {}
-  // Example: Get current page title
-  context.pageTitle = document.title
-  // Example: Get current URL path
-  context.path = window.location.pathname
-  // Example: Check if on product page (simplified)
-  if (window.location.pathname.includes("/products/")) {
-    context.onProductPage = true
-    // Try to get product name from a common selector
-    const productNameElement = document.querySelector("h1.product-title, .product-single__title")
-    if (productNameElement) {
-      context.productName = productNameElement.innerText.trim()
-    }
-    // Try to get product price
-    const productPriceElement = document.querySelector(".product-price__price, [data-product-price]")
-    if (productPriceElement) {
-      context.productPrice = productPriceElement.innerText.trim()
-    }
-  }
-  // Example: Check if on cart page
-  if (window.location.pathname.includes("/cart")) {
-    context.onCartPage = true
-    const cartItemCountElement = document.querySelector(".cart-count, .header__cart-count")
-    if (cartItemCountElement) {
-      context.cartCount = Number.parseInt(cartItemCountElement.innerText.trim(), 10)
-    }
-    // You can add more specific cart item details here if needed
-  }
-  // Add more context extraction logic as needed for your Shopify theme
-  return context
 }
 
 // Function to speak text
@@ -698,145 +683,6 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = "en-US" // Set language
   window.speechSynthesis.speak(utterance)
-}
-
-// Function to execute actions based on AI response
-function executeAction(action) {
-  console.log("Executing action:", action)
-  switch (action.type) {
-    case "navigate":
-      if (action.payload.url) {
-        window.location.href = action.payload.url
-      } else if (action.payload.path) {
-        window.location.pathname = action.payload.path
-      }
-      break
-    case "search":
-      const searchInput = document.querySelector('input[name="q"], input[type="search"]')
-      if (searchInput && action.payload.query) {
-        searchInput.value = action.payload.query
-        // Attempt to submit the form or trigger a search event
-        const searchForm = searchInput.closest("form")
-        if (searchForm) {
-          searchForm.submit()
-        } else {
-          // Fallback: simulate pressing Enter if no form found
-          searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true }))
-        }
-      } else {
-        console.warn("Search input not found or query missing.")
-        speak("I couldn't find a search bar to perform that action.")
-      }
-      break
-    case "add_to_cart":
-      // This is highly dependent on Shopify theme's specific selectors
-      // A more robust solution would involve Shopify's AJAX API or specific form submission
-      console.log("Attempting to add to cart:", action.payload.productName)
-      // Example: Try to find an add to cart button and click it
-      const addToCartButton = document.querySelector('button[name="add"], input[name="add"], .add-to-cart-button')
-      if (addToCartButton) {
-        addToCartButton.click()
-        speak(`Attempting to add ${action.payload.productName || "item"} to cart.`)
-      } else {
-        speak("I couldn't find an add to cart button on this page.")
-      }
-      break
-    case "go_to_cart":
-      window.location.pathname = "/cart"
-      break
-    case "go_to_checkout":
-      window.location.pathname = "/checkout"
-      break
-    case "click_element":
-      let elementToClick = null
-      if (action.payload.selector) {
-        elementToClick = document.querySelector(action.payload.selector)
-      } else if (action.payload.text) {
-        // Find element by text content (can be slow and error-prone)
-        const allElements = document.querySelectorAll("a, button, span, div, p, h1, h2, h3, h4, h5, h6")
-        for (const el of allElements) {
-          if (el.innerText && el.innerText.trim().toLowerCase().includes(action.payload.text.toLowerCase())) {
-            elementToClick = el
-            break
-          }
-        }
-      }
-
-      if (elementToClick) {
-        elementToClick.click()
-        speak(`Clicked on ${action.payload.text || "the element"}.`)
-      } else {
-        speak("I couldn't find that element to click.")
-      }
-      break
-    case "scroll":
-      if (action.payload.direction === "down") {
-        window.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" })
-        speak("Scrolling down.")
-      } else if (action.payload.direction === "up") {
-        window.scrollBy({ top: -window.innerHeight * 0.8, behavior: "smooth" })
-        speak("Scrolling up.")
-      }
-      break
-    case "refresh_page":
-      window.location.reload()
-      break
-    case "inform":
-      // No DOM action, just the speech response is sufficient
-      break
-    case "update_quantity":
-      // This requires more advanced DOM manipulation, finding the specific item's quantity input
-      // and updating it. For simplicity, this is a placeholder.
-      speak(
-        `Attempting to update quantity for ${action.payload.productName || "an item"} to ${action.payload.quantity}.`,
-      )
-      console.warn("Update quantity action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "remove_item":
-      // Similar to update_quantity, requires finding the specific item's remove button
-      speak(`Attempting to remove ${action.payload.productName || "an item"} from cart.`)
-      console.warn("Remove item action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "apply_discount":
-      // This would involve finding the discount code input field and submitting it
-      speak(`Attempting to apply discount code ${action.payload.code}.`)
-      console.warn("Apply discount action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "view_orders":
-      window.location.pathname = "/account/orders" // Common Shopify path for orders
-      break
-    case "contact_support":
-      window.location.pathname = "/pages/contact" // Common Shopify path for contact
-      break
-    case "sort_products":
-      // This would involve finding sorting dropdowns/buttons and interacting with them
-      speak(`Attempting to sort products by ${action.payload.criteria} ${action.payload.order}.`)
-      console.warn("Sort products action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "filter_products":
-      // This would involve interacting with filter checkboxes, dropdowns, or input fields
-      speak(`Attempting to filter products by ${JSON.stringify(action.payload)}.`)
-      console.warn("Filter products action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "add_to_wishlist":
-      speak(`Attempting to add ${action.payload.productName || "this item"} to your wishlist.`)
-      console.warn("Add to wishlist action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "view_wishlist":
-      // Shopify doesn't have a native wishlist, usually a third-party app.
-      // You'd need to know the specific URL or selector for your wishlist app.
-      speak("Navigating to your wishlist. Note: This may require a third-party app integration.")
-      console.warn("View wishlist action requires specific DOM implementation for your Shopify theme.")
-      break
-    case "clear_cart":
-      // This often involves a specific button or a series of remove actions.
-      speak("Attempting to clear your shopping cart.")
-      console.warn("Clear cart action requires specific DOM implementation for your Shopify theme.")
-      break
-    default:
-      console.warn("Unknown action type:", action.type)
-      speak("I'm not sure how to perform that action on this page.")
-  }
 }
 
 // Listen for messages from the background script (e.g., voice command results)

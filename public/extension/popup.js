@@ -2,60 +2,51 @@ document.addEventListener("DOMContentLoaded", () => {
   const startButton = document.getElementById("startButton")
   const stopButton = document.getElementById("stopButton")
   const statusDiv = document.getElementById("status")
-  const transcriptDiv = document.getElementById("transcript")
+  const responseDiv = document.getElementById("response")
 
   let recognition
   let isListening = false
 
-  // Check for SpeechRecognition API support
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  const chrome = window.chrome // Declare the chrome variable
-
-  if (SpeechRecognition) {
-    recognition = new SpeechRecognition()
-    recognition.continuous = false // Listen for a single utterance
+  // Check for Web Speech API compatibility
+  if (window.webkitSpeechRecognition) {
+    recognition = new window.webkitSpeechRecognition()
+    recognition.continuous = false // Listen for a single phrase
     recognition.interimResults = false // Only return final results
     recognition.lang = "en-US"
 
     recognition.onstart = () => {
       isListening = true
-      statusDiv.textContent = "Listening..."
+      statusDiv.textContent = "Status: Listening..."
       startButton.disabled = true
       stopButton.disabled = false
-      transcriptDiv.textContent = ""
+      responseDiv.textContent = ""
     }
 
     recognition.onresult = (event) => {
-      const speechResult = event.results[0][0].transcript
-      transcriptDiv.textContent = `Heard: "${speechResult}"`
-      statusDiv.textContent = "Processing command..."
+      const command = event.results[0][0].transcript
+      statusDiv.textContent = `Status: Command received: "${command}"`
+      responseDiv.textContent = "Processing command..."
 
-      // Send the command to the content script (which will then send it to the Next.js app)
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].id) {
-          chrome.tabs.sendMessage(
-            tabs[0].id,
-            {
-              action: "VOICE_COMMAND_FROM_EXTENSION",
-              command: speechResult,
-            },
-            (response) => {
-              if (chrome.runtime.lastError) {
-                console.error("Error sending message to content script:", chrome.runtime.lastError.message)
-                statusDiv.textContent = `Error: ${chrome.runtime.lastError.message}`
-              } else {
-                console.log("Response from content script:", response)
-                statusDiv.textContent = "Command sent!"
-              }
-            },
-          )
-        }
+      // Send command to content script
+      window.chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        window.chrome.tabs.sendMessage(tabs[0].id, { type: "VOICE_COMMAND", command: command }, (response) => {
+          if (window.chrome.runtime.lastError) {
+            responseDiv.textContent = `Error: Could not send message to content script. Is the extension enabled on this page?`
+            console.error(window.chrome.runtime.lastError)
+            return
+          }
+          if (response && response.status === "success") {
+            responseDiv.textContent = `Action: ${response.action}`
+          } else {
+            responseDiv.textContent = `Error: ${response ? response.message : "No response from content script."}`
+          }
+        })
       })
     }
 
     recognition.onerror = (event) => {
+      statusDiv.textContent = `Status: Error - ${event.error}`
       console.error("Speech recognition error:", event.error)
-      statusDiv.textContent = `Error: ${event.error}`
       isListening = false
       startButton.disabled = false
       stopButton.disabled = true
@@ -63,12 +54,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     recognition.onend = () => {
       if (isListening) {
-        // Only update status if it wasn't stopped manually
-        statusDiv.textContent = "Ready"
+        // Only reset if it wasn't explicitly stopped
+        statusDiv.textContent = "Status: Idle"
+        isListening = false
+        startButton.disabled = false
+        stopButton.disabled = true
       }
-      isListening = false
-      startButton.disabled = false
-      stopButton.disabled = true
     }
 
     startButton.addEventListener("click", () => {
@@ -80,26 +71,14 @@ document.addEventListener("DOMContentLoaded", () => {
     stopButton.addEventListener("click", () => {
       if (isListening) {
         recognition.stop()
-        statusDiv.textContent = "Stopped."
-      }
-    })
-
-    // Listen for messages from the content script (responses from Next.js app)
-    window.addEventListener("message", (event) => {
-      if (event.source !== window) return
-      if (event.data.type === "VOICE_COMMAND_RESPONSE_TO_EXTENSION") {
-        console.log("Popup received response from content script:", event.data.response)
-        if (event.data.response && event.data.response.speech) {
-          statusDiv.textContent = `Response: ${event.data.response.speech}`
-        } else if (event.data.error) {
-          statusDiv.textContent = `Error: ${event.data.error}`
-        } else {
-          statusDiv.textContent = "Command processed."
-        }
+        isListening = false // Explicitly set to false when stopped by user
+        statusDiv.textContent = "Status: Stopped."
+        startButton.disabled = false
+        stopButton.disabled = true
       }
     })
   } else {
-    statusDiv.textContent = "Speech Recognition not supported in this browser."
+    statusDiv.textContent = "Status: Web Speech API not supported in this browser."
     startButton.disabled = true
     stopButton.disabled = true
   }

@@ -1,20 +1,20 @@
 # Shopify Voice Automation
 
-This project enables voice-controlled automation for your Shopify store using Next.js, Groq, and the Web Speech API.
+This project demonstrates a voice automation solution for Shopify stores, allowing users to control their store experience using voice commands. It includes a Next.js application for processing voice commands via AI (Groq) and a browser extension to capture voice input and execute actions on the Shopify storefront.
 
 ## Features
 
--   **Voice Commands**: Control your Shopify store with natural language commands.
--   **Groq Integration**: Utilizes Groq for fast and efficient natural language processing.
--   **Browser Extension**: A companion browser extension to inject the voice agent into your Shopify store.
--   **Demo Page**: A Next.js application to test voice commands and Groq API connection.
+- **Voice Command Processing**: Uses Groq AI to interpret natural language voice commands and translate them into actionable steps.
+- **Shopify Integration**: Designed to interact with a Shopify store's DOM to perform actions like navigation, search, adding to cart, filling forms, and more.
+- **Browser Extension**: A simple Chrome/Firefox extension to capture voice input and send it to the Next.js backend for processing.
+- **Demo Interface**: A web-based demo to manually test voice commands and see the AI's JSON response.
 
-## Setup and Deployment
+## Getting Started
 
 ### 1. Clone the Repository
 
 \`\`\`bash
-git clone [your-repo-url]
+git clone https://github.com/your-username/shopify-voice-automation.git
 cd shopify-voice-automation
 \`\`\`
 
@@ -24,93 +24,80 @@ cd shopify-voice-automation
 npm install
 # or
 yarn install
-# or
-pnpm install
 \`\`\`
 
-### 3. Environment Variables
+### 3. Set Up Environment Variables
 
 Create a `.env.local` file in the root of your project and add your Groq API key:
 
 \`\`\`
 GROQ_API_KEY=your_groq_api_key_here
-NEXT_PUBLIC_SHOPIFY_STORE_NAME="Your Shopify Store Name"
+NEXT_PUBLIC_SHOPIFY_STORE_URL=https://your-store-name.myshopify.com
+NEXT_PUBLIC_SHOPIFY_STORE_NAME=Your Store Name
 \`\`\`
 
-For Vercel deployments, set `GROQ_API_KEY` as an environment variable in your Vercel project settings.
+You can get a Groq API key from [Groq Console](https://console.groq.com/).
+`NEXT_PUBLIC_SHOPIFY_STORE_URL` should be your Shopify store's URL (e.g., `https://cfcu5s-iu.myshopify.com`).
+`NEXT_PUBLIC_SHOPIFY_STORE_NAME` is a friendly name for your store.
 
-### 4. Run Locally
+### 4. Run the Next.js Application
 
 \`\`\`bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
 \`\`\`
 
-The application will be available at `http://localhost:3000`.
+The application will be running at `http://localhost:3000`.
 
-### 5. Deploy to Vercel
+### 5. Install the Browser Extension
 
-Deploy your Next.js application to Vercel. Ensure you set the `GROQ_API_KEY` environment variable in your Vercel project settings.
+This project includes a basic browser extension.
 
-### 6. Shopify Integration
+#### For Chrome:
+1. Open Chrome and navigate to `chrome://extensions/`.
+2. Enable "Developer mode" in the top right corner.
+3. Click "Load unpacked" and select the `public/extension` directory from your cloned project.
 
-#### a. Get Your Next.js App URL
+#### For Firefox:
+1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
+2. Click "Load Temporary Add-on..." and select any file inside the `public/extension` directory (e.g., `manifest.json`).
 
-After deploying your Next.js app to Vercel, get its public URL (e.g., `https://your-app-name.vercel.app`). This will be your `NEXTJS_APP_URL`.
+The extension icon should appear in your browser's toolbar.
 
-#### b. Add Liquid Snippet to Shopify
+### 6. Integrate with Shopify (Optional)
 
-1.  In your Shopify admin, navigate to **Online Store > Themes**.
-2.  Find your current theme and click **Actions > Edit code**.
-3.  Under the `Snippets` directory, create a new snippet named `voice-agent.liquid`.
-4.  Copy the content from `shopify_integration/snippets/voice-agent.liquid` into this new snippet.
-5.  **Important**: Replace `YOUR_NEXTJS_APP_URL` in the `voice-agent.liquid` snippet with your actual deployed Next.js app URL.
+To use the voice agent directly on your Shopify store, you'll need to inject the `voice-agent.liquid` snippet into your Shopify theme.
 
-    \`\`\`liquid
-    <script>
-      window.NEXTJS_APP_URL = "YOUR_NEXTJS_APP_URL"; // e.g., "https://your-app-name.vercel.app"
-    </script>
-    \`\`\`
+1. **Copy `shopify_integration/snippets/voice-agent.liquid`** to your Shopify theme's `snippets` directory.
+2. **Include the snippet** in your theme's `layout/theme.liquid` file, typically before the closing `</body>` tag:
 
-6.  Include the snippet in your theme's `theme.liquid` file. Find the `</body>` tag and add the following line just before it:
+   \`\`\`liquid
+   {% include 'voice-agent' %}
+   </body>
+   </html>
+   \`\`\`
 
-    \`\`\`liquid
-    {% render 'voice-agent' %}
-    \`\`\`
+   This snippet will load the necessary scripts to enable voice commands on your live Shopify store.
 
-#### c. Install the Browser Extension
+## Usage
 
-1.  Open your browser (e.g., Chrome) and go to `chrome://extensions`.
-2.  Enable "Developer mode" in the top right corner.
-3.  Click "Load unpacked" and select the `public/extension` directory from your cloned project.
-4.  The extension will now be installed. Pin it to your toolbar for easy access.
+### Using the Demo Interface
 
-### 7. Usage
+Navigate to `http://localhost:3000` in your browser. You can type commands into the "Voice Command" input field and click "Process Command" to see the AI's JSON response. Use the "Test Groq Connection" button to verify your API key setup.
 
-1.  Visit your Shopify store.
-2.  Click the browser extension icon.
-3.  Click the microphone button to start listening for commands.
-4.  Try commands like:
-    -   "Go to products"
-    -   "Search for t-shirts"
-    -   "Add Vintage T-Shirt to cart"
-    -   "Go to checkout"
-    -   "Increase quantity of [product name] to [number]"
-    -   "Remove [product name] from cart"
+### Using the Browser Extension (on Shopify Store)
 
-## Project Structure
+1. Navigate to your Shopify store (e.g., `https://your-store-name.myshopify.com`).
+2. Click the browser extension icon.
+3. Click the "Start Listening" button and speak your command (e.g., "Go to cart", "Search for rings", "Add a blue t-shirt to cart").
+4. The extension will send the command to your running Next.js app, and the AI will attempt to perform the requested action on the Shopify page.
 
--   `app/api`: Next.js API routes for processing voice commands and testing Groq connection.
--   `components`: React components, including the voice command demo and UI components.
--   `public/extension`: Source code for the browser extension.
--   `shopify_integration`: Shopify Liquid snippet for injecting the voice agent.
+## API Endpoints
 
-## Troubleshooting
+- `POST /api/process-command`: Processes a voice command and returns a JSON object with actions to perform.
+- `POST /api/groq-test`: Tests the connection to the Groq API.
 
--   **"Speech recognition not supported"**: Ensure you are using a browser that supports the Web Speech API (e.g., Chrome, Edge).
--   **API Key Errors**: Double-check your `GROQ_API_KEY` in `.env.local` (for local) or Vercel environment variables (for deployment).
--   **Command Processing Errors**: Check the network tab in your browser's developer tools for errors from `/api/process-command`.
--   **Extension Not Working**: Ensure "Developer mode" is enabled in `chrome://extensions` and the extension is loaded unpacked correctly. Also, verify `NEXTJS_APP_URL` in your `voice-agent.liquid` snippet is correct.
+## Contributing
+
+Feel free to fork this repository, open issues, and submit pull requests.

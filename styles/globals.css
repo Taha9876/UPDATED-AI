@@ -89,6 +89,4 @@
   }
 }
 
-/* This file can be removed if app/globals.css is the primary stylesheet */
-/* Or, if it's intended for specific global styles not handled by Tailwind */
-/* For now, keeping it empty as per previous placeholder */
+/* This file is intentionally left blank as app/globals.css is used for global styles. */

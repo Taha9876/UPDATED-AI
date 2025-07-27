@@ -1,7 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import {
+  ChartContainer as RechartsChartContainer,
+  type ChartContainerProps as RechartsChartContainerProps,
+} from "@tremor/react"
+import { ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
@@ -12,18 +16,13 @@ import { cn } from "@/lib/utils"
 // https://tanstack.com/charts/latest/docs/react/api/ChartTooltip
 // https://tanstack.com/charts/latest/docs/react/api/ChartTooltipContent
 
-const Chart = ({
-  config,
-  className,
-  children,
-  ...props
-}: { config: ChartConfig } & React.ComponentProps<typeof ChartContainer>) => {
+const Chart = ({ config, className, children, ...props }: { config: ChartConfig } & RechartsChartContainerProps) => {
   const id = React.useId()
   return (
-    <ChartContainer id={id} config={config} className={cn("flex aspect-video w-full", className)} {...props}>
+    <RechartsChartContainer ref={null} className={cn("flex aspect-video w-full", className)} {...props}>
       {children}
       <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-    </ChartContainer>
+    </RechartsChartContainer>
   )
 }
 
@@ -88,7 +87,7 @@ const ChartSelect = ({
       <div className="flex items-center gap-4">
         {Object.entries(config).map(([key, item]) => (
           <div key={key} className="flex items-center gap-1.5">
-            <item.icon className="h-3 w-3 shrink-0" />
+            {item.icon && <item.icon className="h-3 w-3 shrink-0" />}
             <Label htmlFor={id}>{item.label}</Label>
           </div>
         ))}
@@ -97,4 +96,13 @@ const ChartSelect = ({
   )
 }
 
-export { Chart, ChartCrosshair, ChartLegend, ChartLegendContent, ChartLegendItem, ChartSelect }
+const ChartContainer = React.forwardRef<HTMLDivElement, RechartsChartContainerProps>(({ className, ...props }, ref) => (
+  <RechartsChartContainer
+    ref={ref}
+    className={cn("flex aspect-video items-center justify-center", className)}
+    {...props}
+  />
+))
+ChartContainer.displayName = "ChartContainer"
+
+export { Chart, ChartCrosshair, ChartLegend, ChartLegendContent, ChartLegendItem, ChartSelect, ChartContainer }

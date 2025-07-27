@@ -2,20 +2,24 @@
 .next/
 out/
 .vercel/
+.turbo/
 
 # Dependencies
 node_modules/
+.pnpm-store
+.pnp
+.pnp.js
 
 # Environment variables
-.env.local
-.env.production
-.env.development
+.env
+.env*.local
 
 # Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+npm-debug.log
+yarn-debug.log
+yarn-error.log
 .pnpm-debug.log*
+*.log
 
 # Local history
 .history/
@@ -36,3 +40,10 @@ build/
 # Custom
 *.tmp
 *.bak
+*.pem
+
+# Testing
+/coverage
+
+# TypeScript build info
+*.tsbuildinfo

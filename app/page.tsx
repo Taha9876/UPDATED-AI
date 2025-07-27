@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import VoiceCommandDemo from "@/components/voice-commands-demo"
+import VoiceCommandsDemo from "@/components/voice-commands-demo"
 import { Toaster } from "sonner"
 import type { SpeechRecognition } from "web-speech-api"
 
-export default function VoiceShopifyAgent() {
+export default function Home() {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState("")
   const [response, setResponse] = useState("")
@@ -185,18 +184,33 @@ export default function VoiceShopifyAgent() {
   const shopName = process.env.NEXT_PUBLIC_SHOPIFY_STORE_NAME || "Your Shopify Store"
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-8 bg-gray-50 dark:bg-gray-950">
-      <Card className="w-full max-w-3xl shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold">Shopify Voice Automation</CardTitle>
-          <CardDescription className="mt-2 text-lg text-muted-foreground">
-            Automate your Shopify store with voice commands using Groq and the Web Speech API.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <VoiceCommandDemo shopName={shopName} />
-        </CardContent>
-      </Card>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-gray-100 dark:bg-gray-900">
+      <VoiceCommandsDemo shopName={shopName} />
+
+      {/* <section className="grid gap-8 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Orna Store Specifics</CardTitle>
+            <CardDescription>Details about the Orna jewelry and fashion store integration.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <OrnaStoreSelectors />
+            <OrnaVoiceCommands />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Advanced Features</CardTitle>
+            <CardDescription>
+              Explore more complex voice command capabilities and browser extension details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <AdvancedVoiceCommands />
+            <BrowserCompatibility />
+          </CardContent>
+        </Card>
+      </section> */}
       <Toaster />
     </main>
   )

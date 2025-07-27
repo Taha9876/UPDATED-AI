@@ -349,4 +349,299 @@
     initializeSpeechRecognition();
     createVoiceCommandButton();
   });
+
+  // Ensure this script runs after the DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    const NEXTJS_AUTOMATION_API_URL = "{{ shop.url }}/api/process-command"; // Use relative path if deployed on same domain, or full URL
+
+    // Function to get current page context
+    function getShopifyPageContext() {
+      const url = window.location.href;
+      let pageType = "unknown";
+      if (url.includes("/products/")) {
+        pageType = "product";
+      } else if (url.includes("/collections/")) {
+        pageType = "collection";
+      } else if (url.includes("/cart")) {
+        pageType = "cart";
+      } else if (url.includes("/search")) {
+        pageType = "search";
+      } else if (url.includes("/account")) {
+        pageType = "account";
+      } else if (url.includes("/checkout")) {
+        pageType = "checkout";
+      } else if (url === window.location.origin + "/") {
+        pageType = "homepage";
+      }
+
+      // Attempt to get cart count (highly theme-dependent)
+      const cartCountElement = document.querySelector('.cart-count-bubble span, .site-header__cart-count');
+      const cartCount = cartCountElement ? parseInt(cartCountElement.textContent.replace(/\D/g, ''), 10) : 0;
+
+      // Add more context as needed, e.g., visible product IDs, form fields, etc.
+      return {
+        url,
+        pageType,
+        cartCount,
+        // Example: current product handle if on a product page
+        productHandle: window.Shopify && window.Shopify.product && window.Shopify.product.handle ? window.Shopify.product.handle : null,
+        // Example: current collection handle if on a collection page
+        collectionHandle: window.location.pathname.includes('/collections/') ? window.location.pathname.split('/collections/')[1].split('/')[0] : null,
+      };
+    }
+
+    // Function to execute actions on the DOM
+    async function executeShopifyAction(action) {
+      console.log("Executing Shopify action:", action);
+      switch (action.type) {
+        case "navigate":
+          let targetUrl = action.url;
+          if (targetUrl === "homepage") targetUrl = "/";
+          else if (targetUrl === "catalog") targetUrl = "/collections/all";
+          else if (targetUrl === "contact") targetUrl = "/pages/contact";
+          else if (targetUrl === "search") targetUrl = "/search";
+          else if (targetUrl === "cart") targetUrl = "/cart";
+          else if (targetUrl === "checkout") targetUrl = "/checkout";
+          else if (targetUrl === "back") window.history.back();
+          else if (targetUrl === "forward") window.history.forward();
+          
+          if (targetUrl.startsWith('/')) {
+            window.location.href = window.location.origin + targetUrl;
+          } else if (targetUrl.startsWith('http')) {
+            window.location.href = targetUrl;
+          }
+          break;
+        case "search":
+          const searchInput = document.querySelector('input[name="q"], input[type="search"]');
+          if (searchInput) {
+            searchInput.value = action.query;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            const searchForm = searchInput.closest('form');
+            const searchButton = searchForm ? searchForm.querySelector('button[type="submit"]') : null;
+            
+            if (searchButton) {
+              searchButton.click();
+            } else if (searchForm) {
+              searchForm.submit();
+            } else {
+              window.location.href = `/search?q=${encodeURIComponent(action.query)}`;
+            }
+          } else {
+            console.warn("Search input not found.");
+            window.location.href = `/search?q=${encodeURIComponent(action.query)}`;
+          }
+          break;
+        case "click":
+          const elementToClick = document.querySelector(action.selector);
+          if (elementToClick) {
+            elementToClick.click();
+            if (action.waitFor) {
+              await new Promise(resolve => {
+                const observer = new MutationObserver((mutations, obs) => {
+                  if (document.querySelector(action.waitFor)) {
+                    obs.disconnect();
+                    resolve();
+                  }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+                setTimeout(() => { obs.disconnect(); resolve(); }, 5000); // Timeout after 5 seconds
+              });
+            }
+          } else {
+            console.warn("Element to click not found:", action.selector);
+          }
+          break;
+        case "addToCart":
+          // This is a simplified example. A robust solution would need to find product ID/variant.
+          const addToCartButton = document.querySelector('button[name="add"], [data-add-to-cart]');
+          if (addToCartButton) {
+            if (action.productId) {
+              console.warn("Product ID selection not fully implemented in demo.");
+            }
+            if (action.variant) {
+              console.warn("Variant selection not fully implemented in demo.");
+            }
+            addToCartButton.click();
+            console.log(`Added to cart: ${action.productId || 'current product'} (Quantity: ${action.quantity || 1})`);
+          } else {
+            console.warn("Add to cart button not found.");
+          }
+          break;
+        case "fillForm":
+          for (const fieldName in action.fields) {
+            const input = document.querySelector(`[name="${fieldName}"], #${fieldName}`);
+            if (input) {
+              input.value = action.fields[fieldName];
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+              console.warn(`Form field "${fieldName}" not found.`);
+            }
+          }
+          if (action.submit) {
+            const form = document.querySelector('form');
+            if (form) {
+              form.submit();
+            } else {
+              console.warn("No form found to submit.");
+            }
+          }
+          break;
+        case "scroll":
+          if (action.direction === "up") {
+            window.scrollBy(0, -(action.amount || window.innerHeight / 2));
+          } else if (action.direction === "down") {
+            window.scrollBy(0, (action.amount || window.innerHeight / 2));
+          } else if (action.direction === "top") {
+            window.scrollTo(0, 0);
+          } else if (action.direction === "bottom") {
+            window.scrollTo(0, document.body.scrollHeight);
+          }
+          break;
+        case "wait":
+          await new Promise(resolve => setTimeout(resolve, action.duration));
+          break;
+        case "getText":
+          const textElement = document.querySelector(action.selector);
+          if (textElement) {
+            console.log("Text found:", textElement.textContent);
+          } else {
+            console.warn("Element for getText not found:", action.selector);
+          }
+          break;
+        case "setAttribute":
+          const setAttrElement = document.querySelector(action.selector);
+          if (setAttrElement) {
+            setAttrElement.setAttribute(action.attribute, action.value);
+          } else {
+            console.warn("Element for setAttribute not found:", action.selector);
+          }
+          break;
+        case "removeElement":
+          const elementToRemove = document.querySelector(action.selector);
+          if (elementToRemove) {
+            elementToRemove.remove();
+          } else {
+            console.warn("Element to remove not found:", action.selector);
+          }
+          break;
+        case "checkout":
+          window.location.href = "/checkout";
+          break;
+        case "applyDiscount":
+          const discountInput = document.querySelector('input[name="discount"]');
+          if (discountInput) {
+            discountInput.value = action.code;
+            discountInput.dispatchEvent(new Event('input', { bubbles: true }));
+            discountInput.dispatchEvent(new Event('change', { bubbles: true }));
+            const applyButton = discountInput.closest('form')?.querySelector('button[type="submit"]');
+            if (applyButton) applyButton.click();
+          } else {
+            console.warn("Discount input not found.");
+          }
+          break;
+        case "selectVariant":
+          console.warn("Variant selection is highly theme-dependent and not fully implemented in demo.");
+          break;
+        case "updateQuantity":
+          console.warn("Update quantity not fully implemented in demo.");
+          break;
+        case "removeFromCart":
+          console.warn("Remove from cart not fully implemented in demo.");
+          break;
+        case "compareProducts":
+          console.warn("Product comparison not implemented in demo.");
+          break;
+        case "readReviews":
+          console.warn("Reading reviews not implemented in demo.");
+          break;
+        case "wishlist":
+          console.warn("Wishlist functionality not implemented in demo.");
+          break;
+        default:
+          console.warn("Unknown action type:", action.type);
+      }
+    }
+
+    // Initialize speech recognition
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        console.log("Voice agent listening...");
+        // You might want to add a visual indicator on the page
+      };
+
+      recognition.onresult = (event) => {
+        const command = event.results[0][0].transcript;
+        console.log("Voice command received:", command);
+        processVoiceCommand(command);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+      };
+
+      recognition.onend = () => {
+        console.log("Voice agent stopped listening.");
+      };
+
+      // Expose a global function to start listening (e.g., from a button in your theme)
+      window.startVoiceCommand = () => {
+        recognition.start();
+      };
+    } else {
+      console.warn("Web Speech API not supported in this browser. Voice commands will not work.");
+    }
+
+    // Function to send command to Next.js API
+    async function processVoiceCommand(command) {
+      try {
+        const response = await fetch(NEXTJS_AUTOMATION_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            command: command,
+            shopifyUrl: window.location.origin,
+            pageContext: getShopifyPageContext(),
+          }),
+        });
+
+        const data = await response.json();
+        console.log("API Response for voice command:", data);
+
+        if (data.response) {
+          // Speak the response back to the user (requires a text-to-speech API or browser feature)
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(data.response);
+            window.speechSynthesis.speak(utterance);
+          }
+        }
+
+        if (data.action) {
+          await executeShopifyAction(data.action);
+          if (data.followUp && Array.isArray(data.followUp)) {
+            for (const followUpAction of data.followUp) {
+              await executeShopifyAction(followUpAction);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error processing voice command:", error);
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance("I'm sorry, I encountered an error processing your command.");
+          window.speechSynthesis.speak(utterance);
+        }
+      }
+    }
+
+    console.log("Shopify Voice Automation Liquid Snippet Loaded.");
+  });
 </script>

@@ -1,72 +1,101 @@
+import { type NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { groq } from "@ai-sdk/groq"
-import { type NextRequest, NextResponse } from "next/server"
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
+  // Set CORS headers for Shopify integration
+  const headers = {
+    "Access-Control-Allow-Origin": "*", // Replace with your Shopify domain in production for security
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  }
+
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, { status: 204, headers })
+  }
+
   try {
-    const { command, currentUrl } = await req.json()
+    const { command, shopifyUrl, pageContext } = await request.json()
 
-    if (!command) {
-      return NextResponse.json({ error: "Command is required" }, { status: 400 })
+    // Access Groq API key securely from environment variables
+    const groqApiKey = process.env.GROQ_API_KEY
+
+    if (!groqApiKey) {
+      return new NextResponse(JSON.stringify({ error: "Groq API key is missing from server environment variables." }), {
+        status: 500,
+        headers,
+      })
     }
 
-    const shopifyStoreName = process.env.NEXT_PUBLIC_SHOPIFY_STORE_NAME
-    const shopifyStoreUrl = process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL
-
-    if (!shopifyStoreName || !shopifyStoreUrl) {
-      return NextResponse.json({ error: "Shopify store name or URL not configured" }, { status: 500 })
-    }
-
+    // Correct usage: groq function directly takes the model name.
+    // The API key is picked up automatically from process.env.GROQ_API_KEY by the SDK.
     const { text } = await generateText({
-      model: groq("llama3-8b-8192"),
-      system: `You are an AI assistant for a Shopify store named "${shopifyStoreName}". Your goal is to help users navigate and interact with the store using voice commands.
-      
-      You can perform the following actions:
-      - "navigate": Go to a specific page (e.g., "go to products page", "take me to checkout").
-      - "search": Search for a product (e.g., "search for t-shirts", "find running shoes").
-      - "add_to_cart": Add a product to the cart (e.g., "add this to cart", "buy now").
-      - "view_cart": View the shopping cart (e.g., "show my cart", "what's in my cart").
-      - "checkout": Proceed to checkout (e.g., "checkout", "finish my order").
-      - "scroll_down": Scroll down the page (e.g., "scroll down", "go down").
-      - "scroll_up": Scroll up the page (e.g., "scroll up", "go up").
-      - "click_element": Click on a specific element (e.g., "click the buy button", "select the size option").
-      - "go_back": Go back to the previous page (e.g., "go back", "previous page").
-      - "refresh_page": Refresh the current page (e.g., "refresh", "reload page").
-      - "open_menu": Open the navigation menu (e.g., "open menu", "show navigation").
-      - "close_menu": Close the navigation menu (e.g., "close menu", "hide navigation").
-      - "play_video": Play a video on the page (e.g., "play video", "start the video").
-      - "pause_video": Pause a video on the page (e.g., "pause video", "stop the video").
-      - "mute_audio": Mute the audio (e.g., "mute", "silence").
-      - "unmute_audio": Unmute the audio (e.g., "unmute", "turn on sound").
-      - "zoom_in": Zoom in on the page (e.g., "zoom in", "make it bigger").
-      - "zoom_out": Zoom out on the page (e.g., "zoom out", "make it smaller").
-      - "read_aloud": Read the content of the page aloud (e.g., "read this page", "read aloud").
-      - "stop_reading": Stop reading aloud (e.g., "stop reading", "silence").
-      - "show_help": Display available commands or help information (e.g., "help", "what can I say?").
-      - "none": If the command does not match any of the above actions.
+      model: groq("llama-3.1-8b-instant"), // Using a specific Groq model
+      system: `You are an advanced voice assistant for the Orna jewelry and fashion store (cfcu5s-iu.myshopify.com). 
+You can perform ANY DOM action on the website. Analyze voice commands and return JSON with:
+1. "response": A natural language response to speak back to the user
+2. "action": An object with detailed action for DOM manipulation
+3. "followUp": Optional array of additional actions to perform in sequence
 
-      When responding, provide a JSON object with the following structure:
-      {
-        "action": "action_name", // e.g., "navigate", "search", "add_to_cart", "none"
-        "value": "value_for_action" // e.g., "/products", "t-shirts", "product_id_123", null
-      }
+Current page context: ${JSON.stringify(pageContext)}
 
-      For "navigate" action, the value should be a relative path (e.g., "/products", "/cart", "/checkout", "/collections/all"). If the user asks to go to the homepage, use "/".
-      For "search" action, the value should be the search query.
-      For "add_to_cart" action, if a specific product ID or name is mentioned, use that. Otherwise, if the user says "add this to cart" on a product page, assume the current product. If no product is clear, set value to null.
-      For "click_element", try to infer the element to click (e.g., "buy button", "size option"). If not clear, set value to null.
-      For other actions, the value can be null unless specified.
+Available actions (be creative and combine them):
+- navigate: {type: "navigate", url: "homepage|catalog|contact|search|cart|checkout|back|forward", target: "_self|_blank"}
+- search: {type: "search", query: "search term", filters: {price: "range", category: "type"}}
+- click: {type: "click", selector: "CSS selector", waitFor: "optional selector to wait for"}
+- addToCart: {type: "addToCart", productId: "optional", quantity: 1, variant: "optional"}
+- fillForm: {type: "fillForm", fields: {field: "value"}, submit: true|false}
+- scroll: {type: "scroll", direction: "up|down|top|bottom", amount: "pixels or viewport"}
+- filter: {type: "filter", category: "price|size|color|brand", value: "filter value"}
+- sort: {type: "sort", by: "price|popularity|newest|rating", order: "asc|desc"}
+- hover: {type: "hover", selector: "CSS selector"}
+- wait: {type: "wait", duration: 1000}
+- getText: {type: "getText", selector: "CSS selector"}
+- setAttribute: {type: "setAttribute", selector: "CSS selector", attribute: "attr", value: "val"}
+- removeElement: {type: "removeElement", selector: "CSS selector"}
+- checkout: {type: "checkout", skipToPayment: false, fillShipping: {}}
+- applyDiscount: {type: "applyDiscount", code: "discount code"}
+- selectVariant: {type: "selectVariant", option: "size|color", value: "variant value"}
+- updateQuantity: {type: "updateQuantity", quantity: number, productId: "optional"}
+- removeFromCart: {type: "removeFromCart", productId: "optional"}
+- compareProducts: {type: "compareProducts", productIds: ["id1", "id2"]}
+- readReviews: {type: "readReviews", productId: "optional"}
+- wishlist: {type: "wishlist", action: "add|remove", productId: "optional"}
 
-      Current URL: ${currentUrl}
-      Shopify Store URL: ${shopifyStoreUrl}
-      `,
-      prompt: command,
+For complex commands, create sequences of actions. Examples:
+- "Find cheap earrings" → search + filter by price
+- "Buy this product" → addToCart + navigate to checkout
+- "Compare these two items" → compareProducts + scroll to comparison
+- "Remove everything from cart" → navigate to cart + removeFromCart (all)
+
+Be intelligent about context:
+- If on product page: can add to cart, select variants, read reviews
+- If on collection page: can filter, sort, search within collection
+- If on cart page: can update quantities, remove items, apply discounts, checkout
+- If on homepage: can navigate anywhere, search, view offers
+
+Always respond with valid JSON only. Be creative and handle complex multi-step requests.`,
+      prompt: `User said: "${command}". Current page: ${pageContext?.url || shopifyUrl}. Page type: ${pageContext?.pageType || "unknown"}. What should I do?`,
     })
 
-    const responseJson = JSON.parse(text)
-    return NextResponse.json(responseJson)
-  } catch (error) {
+    try {
+      const parsed = JSON.parse(text)
+      return new NextResponse(JSON.stringify(parsed), { status: 200, headers })
+    } catch (parseError) {
+      // Fallback if JSON parsing fails
+      return new NextResponse(
+        JSON.stringify({
+          response: "I understood your command. Let me help you with that.",
+          action: { type: "navigate", url: "homepage" },
+        }),
+        { status: 200, headers },
+      )
+    }
+  } catch (error: any) {
     console.error("Error processing command:", error)
-    return NextResponse.json({ error: "Failed to process command" }, { status: 500 })
+    return new NextResponse(JSON.stringify({ error: "Failed to process command", details: error.message }), {
+      status: 500,
+      headers,
+    })
   }
 }
