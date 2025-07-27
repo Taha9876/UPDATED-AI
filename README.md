@@ -69,7 +69,7 @@ After deploying your Next.js app to Vercel, get its public URL (e.g., `https://y
 4.  Copy the content from `shopify_integration/snippets/voice-agent.liquid` into this new snippet.
 5.  **Important**: Replace `YOUR_NEXTJS_APP_URL` in the `voice-agent.liquid` snippet with your actual deployed Next.js app URL.
 
-    ```liquid
+    \`\`\`liquid
     <script>
       window.NEXTJS_APP_URL = "YOUR_NEXTJS_APP_URL"; // e.g., "https://your-app-name.vercel.app"
     </script>
@@ -77,7 +77,7 @@ After deploying your Next.js app to Vercel, get its public URL (e.g., `https://y
 
 6.  Include the snippet in your theme's `theme.liquid` file. Find the `</body>` tag and add the following line just before it:
 
-    ```liquid
+    \`\`\`liquid
     {% render 'voice-agent' %}
     \`\`\`
 
