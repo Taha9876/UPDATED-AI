@@ -1,57 +1,30 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { createGroq } from "@ai-sdk/groq"
+import { groq } from "@ai-sdk/groq"
 
-export async function POST(request: NextRequest) {
-  // Set CORS headers for Shopify integration
-  const headers = {
-    "Access-Control-Allow-Origin": "*", // Replace with your Shopify domain in production for security
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  }
+export async function GET() {
+  const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-  if (request.method === "OPTIONS") {
-    return new NextResponse(null, { status: 204, headers })
+  if (!GROQ_API_KEY) {
+    return NextResponse.json({ error: "Groq API Key not configured on the server." }, { status: 500 })
   }
 
   try {
-    // Access Groq API key securely from environment variables
-    const groqApiKey = process.env.GROQ_API_KEY
-
-    if (!groqApiKey) {
-      return new NextResponse(JSON.stringify({ error: "Groq API key is missing from server environment variables." }), {
-        status: 500,
-        headers,
-      })
-    }
-
-    // Create Groq instance with API key
-    const groq = createGroq({
-      apiKey: groqApiKey,
-    })
-
-    // Test the Groq API with your key
     const { text } = await generateText({
-      model: groq("llama-3.1-8b-instant"),
-      prompt: 'Respond with "Groq API is working perfectly!" if you can read this message.',
+      model: groq("llama3-8b-8192"), // Using a suitable Groq model [^1]
+      prompt: "Hello, Groq! What is the capital of France?",
+      apiKey: GROQ_API_KEY,
     })
 
-    return new NextResponse(
-      JSON.stringify({
-        success: true,
-        response: text,
-        message: "Groq API connection successful!",
-      }),
-      { status: 200, headers },
-    )
+    return NextResponse.json({ message: "Groq connection successful!", response: text })
   } catch (error) {
-    console.error("Groq API test failed:", error)
-    return new NextResponse(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      { status: 500, headers },
+    console.error("Error connecting to Groq:", error)
+    return NextResponse.json(
+      {
+        message: "Failed to connect to Groq.",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     )
   }
 }
