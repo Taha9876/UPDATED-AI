@@ -53,11 +53,9 @@
     "react-hook-form": "latest",
     "react-resizable-panels": "latest",
     "sonner": "latest",
-    "speech-recognition": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
-    "web-speech-api": "latest",
     "zod": "^3.23.8"
   },
   "devDependencies": {

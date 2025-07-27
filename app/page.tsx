@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import VoiceCommandDemo from "@/components/voice-commands-demo"
 import { Toaster } from "sonner"
-import type { SpeechRecognition } from "web-speech-api"
+// Removed: import type { SpeechRecognition } from "web-speech-api"
 
 export default function VoiceShopifyAgent() {
   const [isListening, setIsListening] = useState(false)
@@ -16,8 +16,9 @@ export default function VoiceShopifyAgent() {
   const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(true)
   const [pageContext, setPageContext] = useState(null)
 
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const synthRef = useRef<SpeechSynthesis | null>(null)
+  // Use native SpeechRecognition and SpeechSynthesis types
+  const recognitionRef = useRef<globalThis.SpeechRecognition | null>(null)
+  const synthRef = useRef<globalThis.SpeechSynthesis | null>(null)
 
   useEffect(() => {
     // Check for speech recognition support with better fallbacks

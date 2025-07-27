@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Loader2, Mic, StopCircle, RefreshCw } from "lucide-react"
-import type SpeechRecognition from "speech-recognition"
+// Removed: import type SpeechRecognition from "speech-recognition"
 
 interface VoiceCommandDemoProps {
   shopName: string
@@ -21,7 +21,8 @@ export default function VoiceCommandDemo({ shopName }: VoiceCommandDemoProps) {
   const [commandResponse, setCommandResponse] = useState("")
   const [isGroqTesting, setIsGroqTesting] = useState(false)
   const [isCommandProcessing, setIsCommandProcessing] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  // Use native SpeechRecognition type
+  const recognitionRef = useRef<globalThis.SpeechRecognition | null>(null)
   const [isSpeechRecognitionSupported, setIsSpeechRecognitionSupported] = useState(false)
 
   useEffect(() => {
