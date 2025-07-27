@@ -16,7 +16,7 @@ interface VoiceCommandDemoProps {
 export default function VoiceCommandDemo({ shopName }: VoiceCommandDemoProps) {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState("")
-  const [groqTestMessage, setGroqTestMessage] = useState("")
+  const [groqTestMessage, setGroqTestMessage] = useState("") // Kept for user input, but not sent to API
   const [groqTestResponse, setGroqTestResponse] = useState("")
   const [commandResponse, setCommandResponse] = useState("")
   const [isGroqTesting, setIsGroqTesting] = useState(false)
@@ -103,11 +103,12 @@ export default function VoiceCommandDemo({ shopName }: VoiceCommandDemoProps) {
     setGroqTestResponse("")
     try {
       const response = await fetch("/api/groq-test", {
-        method: "POST",
+        method: "POST", // Ensure this matches the API route handler
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: groqTestMessage }),
+        // Removed body as the /api/groq-test endpoint doesn't use the message
+        // body: JSON.stringify({ message: groqTestMessage }),
       })
 
       const data = await response.json()
@@ -174,7 +175,9 @@ export default function VoiceCommandDemo({ shopName }: VoiceCommandDemoProps) {
               value={groqTestMessage}
               onChange={(e) => setGroqTestMessage(e.target.value)}
             />
-            <Button onClick={testGroqConnection} disabled={isGroqTesting || !groqTestMessage}>
+            <Button onClick={testGroqConnection} disabled={isGroqTesting}>
+              {" "}
+              {/* Removed !groqTestMessage from disabled */}
               {isGroqTesting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...
