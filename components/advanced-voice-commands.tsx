@@ -1,56 +1,52 @@
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/20240727134324
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
-import { CardTitle, CardDescription, CardHeader, CardContent, Card } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-export function AdvancedVoiceCommands() {
+export default function AdvancedVoiceCommands() {
+  const commands = [
+    { command: "Add [product name] to cart", description: "Adds a specific product to the shopping cart." },
+    { command: "Search for [keyword]", description: "Performs a search on the store for the given keyword." },
+    {
+      command: "Go to [page name]",
+      description: 'Navigates to a specific page like "checkout", "cart", or "account".',
+    },
+    {
+      command: "Increase quantity to [number]",
+      description: "Sets the quantity of the current product to the specified number.",
+    },
+    { command: "Apply discount code [code]", description: "Applies a given discount code during checkout." },
+    { command: "Show me products by [brand]", description: "Filters products by a specific brand." },
+    { command: "Sort by [option]", description: 'Sorts product listings by "price low to high", "newest", etc.' },
+    { command: "Proceed to checkout", description: "Initiates the checkout process." },
+    { command: "View my orders", description: "Navigates to the user's order history page." },
+    { command: "Contact support", description: "Opens the customer support contact form or page." },
+  ]
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Advanced Voice Commands</CardTitle>
-        <CardDescription>Configure and test advanced voice commands for your Shopify store.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid gap-2">
-          <Label htmlFor="command-name">Command Name</Label>
-          <Input id="command-name" placeholder="e.g., 'Quick Checkout'" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="trigger-phrases">Trigger Phrases (comma-separated)</Label>
-          <Input id="trigger-phrases" placeholder="e.g., 'checkout now', 'buy everything'" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="ai-prompt">AI Prompt for Groq</Label>
-          <Textarea
-            className="min-h-[100px]"
-            id="ai-prompt"
-            placeholder="e.g., 'User wants to complete checkout. Generate actions to navigate to checkout and fill shipping info.'"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="expected-action">Expected JSON Action</Label>
-          <Textarea
-            className="min-h-[150px] font-mono text-sm"
-            id="expected-action"
-            placeholder={`{\n  "action": {\n    "type": "checkout",\n    "skipToPayment": false,\n    "fillShipping": {\n      "name": "John Doe",\n      "address": "123 Main St"\n    }\n  }\n}`}
-          />
-        </div>
-        <Button>Save Command</Button>
-        <div className="grid gap-2">
-          <Label htmlFor="test-command">Test Command</Label>
-          <Input id="test-command" placeholder="e.g., 'Quick Checkout'" />
-        </div>
-        <Button>Run Test</Button>
-        <div className="grid gap-2">
-          <Label htmlFor="test-result">Test Result</Label>
-          <Textarea className="min-h-[100px] font-mono text-sm" id="test-result" readOnly />
-        </div>
+      <CardContent>
+        <p className="mb-4 text-gray-700 dark:text-gray-300">
+          Here are some advanced voice commands you can use to interact with a Shopify store. These commands are
+          processed by the AI model to generate actionable instructions.
+        </p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Command</TableHead>
+              <TableHead>Description</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {commands.map((cmd, index) => (
+              <TableRow key={index}>
+                <TableCell className="font-medium">{cmd.command}</TableCell>
+                <TableCell>{cmd.description}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   )

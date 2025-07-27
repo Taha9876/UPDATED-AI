@@ -1,64 +1,49 @@
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/20240727134324
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
-import { CardTitle, CardDescription, CardHeader, CardContent, Card } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-export function OrnaStoreSelectors() {
+export default function OrnaStoreSelectors() {
+  const selectors = [
+    { element: "Add to Cart Button", selector: ".product-form__submit" },
+    { element: "Search Input", selector: "#Search-In-Modal" },
+    { element: "Cart Icon", selector: ".header__icon--cart" },
+    { element: "Product Title", selector: ".product__title" },
+    { element: "Product Price", selector: ".price-item--regular" },
+    { element: "Quantity Input", selector: 'input[name="quantity"]' },
+    { element: "Checkout Button", selector: ".cart__checkout-button" },
+    { element: "Collection Filter", selector: ".facets__disclosure-btn" },
+    { element: "Sort By Dropdown", selector: "#SortBy" },
+    { element: "Customer Account Link", selector: 'a[href="/account"]' },
+  ]
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Orna Store Selectors</CardTitle>
-        <CardDescription>Define and manage CSS selectors for key elements on your Orna Shopify store.</CardDescription>
+        <CardTitle>Orna Store Selectors (Example)</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid gap-2">
-          <Label htmlFor="search-input">Search Input Selector</Label>
-          <Input id="search-input" placeholder="#SearchInput" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="add-to-cart-button">Add to Cart Button Selector</Label>
-          <Input id="add-to-cart-button" placeholder=".product-form__submit" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="cart-icon">Cart Icon Selector</Label>
-          <Input id="cart-icon" placeholder=".site-header__cart" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="product-title">Product Title Selector</Label>
-          <Input id="product-title" placeholder=".product-single__title" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="product-price">Product Price Selector</Label>
-          <Input id="product-price" placeholder=".product-single__price" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="checkout-button">Checkout Button Selector</Label>
-          <Input id="checkout-button" placeholder="#CartDrawer-CheckoutButton" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="custom-selector-name">Custom Selector Name</Label>
-          <Input id="custom-selector-name" placeholder="e.g., 'Newsletter Signup Button'" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="custom-selector-value">Custom Selector Value</Label>
-          <Input id="custom-selector-value" placeholder="#NewsletterForm button[type='submit']" />
-        </div>
-        <Button>Save Selectors</Button>
-        <div className="grid gap-2">
-          <Label htmlFor="test-selector">Test Selector</Label>
-          <Input id="test-selector" placeholder=".site-header__logo" />
-        </div>
-        <Button>Find Element</Button>
-        <div className="grid gap-2">
-          <Label htmlFor="test-result">Test Result</Label>
-          <Textarea className="min-h-[100px] font-mono text-sm" id="test-result" readOnly />
-        </div>
+      <CardContent>
+        <p className="mb-4 text-gray-700 dark:text-gray-300">
+          These are example CSS selectors for common elements on a Shopify store. In a real automation scenario, these
+          would be used by a browser extension or automation script to interact with the page.
+        </p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Element</TableHead>
+              <TableHead>CSS Selector</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {selectors.map((item, index) => (
+              <TableRow key={index}>
+                <TableCell className="font-medium">{item.element}</TableCell>
+                <TableCell className="font-mono text-sm">{item.selector}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+          Note: Actual selectors may vary based on your Shopify theme.
+        </p>
       </CardContent>
     </Card>
   )

@@ -2,7 +2,7 @@
 const nextConfig = {
   webpack: (config) => {
     config.externals.push({
-      "node:buffer": "commonjs node:buffer",
+      'node:buffer': 'commonjs node:buffer',
     })
     return config
   },

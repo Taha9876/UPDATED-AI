@@ -2,24 +2,24 @@
   "manifest_version": 3,
   "name": "Shopify Voice Automation",
   "version": "1.0",
-  "description": "Control your Shopify store with voice commands.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "description": "Automate Shopify tasks using voice commands.",
+  "permissions": ["activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "placeholder-logo.png",
-      "48": "placeholder-logo.png",
-      "128": "placeholder-logo.png"
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
     }
   },
   "icons": {
-    "16": "placeholder-logo.png",
-    "48": "placeholder-logo.png",
-    "128": "placeholder-logo.png"
-  },
-  "background": {
-    "service_worker": "background.js"
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
   },
   "content_scripts": [
     {

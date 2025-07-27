@@ -2,6 +2,12 @@
 
 import { useState, useRef, useEffect } from "react"
 import VoiceCommandsDemo from "@/components/voice-commands-demo"
+import BrowserCompatibility from "@/components/browser-compatibility"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { Github, ExternalLink } from "lucide-react"
 import { Toaster } from "sonner"
 import type { SpeechRecognition } from "web-speech-api"
 
@@ -184,34 +190,41 @@ export default function Home() {
   const shopName = process.env.NEXT_PUBLIC_SHOPIFY_STORE_NAME || "Your Shopify Store"
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-gray-100 dark:bg-gray-900">
-      <VoiceCommandsDemo shopName={shopName} />
-
-      {/* <section className="grid gap-8 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Orna Store Specifics</CardTitle>
-            <CardDescription>Details about the Orna jewelry and fashion store integration.</CardDescription>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 dark:from-gray-900 dark:to-gray-950">
+      <main className="w-full max-w-4xl space-y-8">
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-3xl font-bold">Shopify Voice Automation</CardTitle>
+            <div className="flex space-x-2">
+              <Link href="https://github.com/Taha9876/UPDATED-AI" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="icon">
+                  <Github className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link
+                href="https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2FTaha9876%2FUPDATED-AI"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="icon">
+                  <ExternalLink className="h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <OrnaStoreSelectors />
-            <OrnaVoiceCommands />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Advanced Features</CardTitle>
-            <CardDescription>
-              Explore more complex voice command capabilities and browser extension details.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AdvancedVoiceCommands />
+          <CardContent className="space-y-6">
+            <p className="text-lg text-gray-700 dark:text-gray-300">
+              This project demonstrates a voice automation solution for Shopify stores, leveraging AI models for natural
+              language processing and command execution.
+            </p>
+            <Separator />
             <BrowserCompatibility />
+            <Separator />
+            <VoiceCommandsDemo shopName={shopName} />
           </CardContent>
         </Card>
-      </section> */}
+      </main>
       <Toaster />
-    </main>
+    </div>
   )
 }

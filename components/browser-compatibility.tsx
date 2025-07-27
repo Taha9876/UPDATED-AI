@@ -1,50 +1,53 @@
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/20240727134324
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
-import { CardTitle, CardDescription, CardHeader, CardContent, Card } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Progress } from "@/components/ui/progress"
+"use client"
 
-export function BrowserCompatibility() {
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Terminal, CheckCircle, XCircle } from "lucide-react"
+
+export default function BrowserCompatibility() {
+  const [isCompatible, setIsCompatible] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
+      setIsCompatible(true)
+    } else {
+      setIsCompatible(false)
+    }
+  }, [])
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>Browser Compatibility</CardTitle>
-        <CardDescription>Check and configure browser compatibility for the voice automation extension.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid gap-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="chrome-support">Chrome Support</Label>
-            <Switch defaultChecked id="chrome-support" />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="firefox-support">Firefox Support</Label>
-            <Switch id="firefox-support" />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label htmlFor="edge-support">Edge Support</Label>
-            <Switch id="edge-support" />
-          </div>
-        </div>
-        <div className="grid gap-2">
-          <Label>Overall Compatibility Score</Label>
-          <Progress value={75} />
-          <p className="text-sm text-muted-foreground">
-            75% of major browsers are supported. Consider adding support for more browsers to reach a wider audience.
-          </p>
-        </div>
-        <div className="grid gap-2">
-          <Label>Troubleshooting Tips</Label>
-          <ul className="list-disc pl-5 text-sm text-muted-foreground">
-            <li>Ensure your browser is up to date.</li>
-            <li>Check browser extension permissions.</li>
-            <li>Disable conflicting extensions.</li>
-          </ul>
-        </div>
+      <CardContent>
+        {isCompatible === null && (
+          <Alert>
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Checking compatibility...</AlertTitle>
+            <AlertDescription>
+              Detecting if your browser supports the Web Speech API for voice commands.
+            </AlertDescription>
+          </Alert>
+        )}
+        {isCompatible === true && (
+          <Alert className="border-green-500 text-green-700 dark:text-green-300">
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Compatible!</AlertTitle>
+            <AlertDescription>Your browser supports the Web Speech API. You can use voice commands.</AlertDescription>
+          </Alert>
+        )}
+        {isCompatible === false && (
+          <Alert variant="destructive">
+            <XCircle className="h-4 w-4" />
+            <AlertTitle>Not Compatible</AlertTitle>
+            <AlertDescription>
+              Your browser does not fully support the Web Speech API. Voice commands may not work. Please try a modern
+              browser like Chrome, Edge, or Firefox.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   )

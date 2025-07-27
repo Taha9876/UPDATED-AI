@@ -1,108 +1,87 @@
 "use client"
 
-import * as React from "react"
-import {
-  ChartContainer as RechartsChartContainer,
-  type ChartContainerProps as RechartsChartContainerProps,
-} from "@tremor/react"
-import { ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-// Learn more about @tanstack/react-charts:
-// https://tanstack.com/charts/latest/docs/react/overview
-// https://tanstack.com/charts/latest/docs/react/api/ChartContainer
-// https://tanstack.com/charts/latest/docs/react/api/ChartTooltip
-// https://tanstack.com/charts/latest/docs/react/api/ChartTooltipContent
+import * as React from "react"
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  Bar,
+  BarChart,
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Dot,
+} from "recharts"
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@tremor/react"
 
-const Chart = ({ config, className, children, ...props }: { config: ChartConfig } & RechartsChartContainerProps) => {
-  const id = React.useId()
-  return (
-    <RechartsChartContainer ref={null} className={cn("flex aspect-video w-full", className)} {...props}>
-      {children}
-      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-    </RechartsChartContainer>
-  )
+const CHART_MARGINS = { top: 20, right: 20, bottom: 20, left: 20 }
+
+type ChartProps = {
+  data: Record<string, any>[]
+  config: ChartConfig
+  type: "line" | "bar" | "area"
+  className?: string
 }
 
-// Helper component to use with Chart to add a switch for data
-const ChartCrosshair = ({ className, ...props }: React.ComponentProps<"div">) => (
-  <div
-    className={cn(
-      "absolute left-0 top-0 h-full w-full",
-      "[&>svg]:pointer-events-none [&>svg]:absolute [&>svg]:inset-0 [&>svg]:h-full [&>svg]:w-full",
-      className,
-    )}
-    {...props}
-  />
-)
+const Chart = React.forwardRef<HTMLDivElement, ChartProps>(({ data, config, type, className, ...props }, ref) => {
+  const ChartComponent = type === "line" ? LineChart : type === "bar" ? BarChart : AreaChart
 
-// Helper component to use with Chart to add a switch for data
-const ChartLegend = ({ className, ...props }: React.ComponentProps<"div">) => (
-  <div className={cn("flex flex-wrap items-center justify-center gap-4", className)} {...props} />
-)
+  const renderChartElements = () => {
+    return Object.entries(config).map(([key, item]) => {
+      if (item.type === "line") {
+        return (
+          <Line
+            key={key}
+            dataKey={key}
+            stroke={item.color}
+            dot={<Dot fill={item.color} stroke={item.color} r={4} />}
+            activeDot={<Dot fill={item.color} stroke={item.color} r={6} />}
+            type="monotone"
+          />
+        )
+      }
+      if (item.type === "bar") {
+        return <Bar key={key} dataKey={key} fill={item.color} radius={[4, 4, 0, 0]} />
+      }
+      if (item.type === "area") {
+        return <Area key={key} dataKey={key} stroke={item.color} fill={item.color} fillOpacity={0.3} type="monotone" />
+      }
+      return null
+    })
+  }
 
-// Helper component to use with Chart to add a switch for data
-const ChartLegendContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-wrap items-center justify-center gap-4", className)} {...props} />
-  ),
-)
-ChartLegendContent.displayName = "ChartLegendContent"
-
-// Helper component to use with Chart to add a switch for data
-const ChartLegendItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, children, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn("flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:fill-current", className)}
-      {...props}
-    >
-      {children}
-    </div>
-  ),
-)
-ChartLegendItem.displayName = "ChartLegendItem"
-
-// Helper component to use with Chart to add a switch for data
-const ChartSelect = ({
-  config,
-  className,
-  children,
-  ...props
-}: { config: ChartConfig } & React.ComponentProps<typeof Select>) => {
-  const id = React.useId()
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <Select {...props}>
-        <SelectTrigger
-          id={id}
-          className="h-9 w-fit rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <SelectValue placeholder="Select a value" />
-        </SelectTrigger>
-        <SelectContent>{children}</SelectContent>
-      </Select>
-      <div className="flex items-center gap-4">
-        {Object.entries(config).map(([key, item]) => (
-          <div key={key} className="flex items-center gap-1.5">
-            {item.icon && <item.icon className="h-3 w-3 shrink-0" />}
-            <Label htmlFor={id}>{item.label}</Label>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ChartContainer ref={ref} config={config} className={cn("min-h-[200px] w-full", className)} {...props}>
+      <ResponsiveContainer>
+        <ChartComponent data={data} margin={CHART_MARGINS}>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="date"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            minTickGap={32}
+            tickFormatter={(value) => {
+              const date = new Date(value)
+              return date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            }}
+          />
+          <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          {renderChartElements()}
+        </ChartComponent>
+      </ResponsiveContainer>
+    </ChartContainer>
   )
-}
+})
 
-const ChartContainer = React.forwardRef<HTMLDivElement, RechartsChartContainerProps>(({ className, ...props }, ref) => (
-  <RechartsChartContainer
-    ref={ref}
-    className={cn("flex aspect-video items-center justify-center", className)}
-    {...props}
-  />
-))
-ChartContainer.displayName = "ChartContainer"
+Chart.displayName = "Chart"
 
-export { Chart, ChartCrosshair, ChartLegend, ChartLegendContent, ChartLegendItem, ChartSelect, ChartContainer }
+export { Chart }

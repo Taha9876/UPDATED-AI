@@ -690,6 +690,36 @@ window.chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "VOICE_COMMAND") {
     handleVoiceCommand(request.command)
     sendResponse({ status: "Command received by content script" })
+  } else if (request.action === "executeInstruction") {
+    const instruction = request.instruction
+    console.log("Executing instruction:", instruction)
+
+    // Example: Basic instruction parsing and execution
+    if (instruction.includes("navigate to the shopping cart page")) {
+      window.location.href = "/cart" // Assuming /cart is the cart page URL
+    } else if (instruction.includes("perform a search for")) {
+      const query = instruction.split("'")[1] // Extracts the search query
+      if (query) {
+        // Example: Fill a search input and submit
+        const searchInput = document.querySelector('input[name="q"]') // Common Shopify search input name
+        if (searchInput) {
+          searchInput.value = query
+          searchInput.form?.submit() // Submit the form if it's part of one
+        } else {
+          // Fallback if no specific search input is found
+          window.location.href = `/search?q=${encodeURIComponent(query)}`
+        }
+      }
+    } else if (instruction.includes("click the 'Add to Cart' button")) {
+      const addToCartButton = document.querySelector('button[name="add"]') // Common Shopify add to cart button name
+      if (addToCartButton) {
+        addToCartButton.click()
+      }
+    }
+    // Add more instruction handling logic here based on your needs
+
+    sendResponse({ success: true, message: "Instruction executed." })
+    return true
   }
 })
 

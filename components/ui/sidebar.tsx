@@ -131,6 +131,14 @@ const SidebarProvider = React.forwardRef<
 })
 SidebarProvider.displayName = "SidebarProvider"
 
+export function Sidebar({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("flex h-full flex-col overflow-y-auto border-r bg-background p-4", className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
 const SidebarComponent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <Card className={cn("h-full w-64 flex flex-col", className)} {...props}>
@@ -602,7 +610,6 @@ const SidebarMenuSubButton = React.forwardRef<
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
 export {
-  SidebarComponent as Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,

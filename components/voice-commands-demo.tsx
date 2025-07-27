@@ -1,139 +1,268 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { Loader2, Mic, StopCircle } from "lucide-react"
+import AdvancedVoiceCommands from "./advanced-voice-commands"
+import OrnaVoiceCommands from "./orna-voice-commands"
+import OrnaStoreSelectors from "./orna-store-selectors"
+import { Separator } from "@/components/ui/separator"
+
+// Declare webkitSpeechRecognition globally to avoid TypeScript errors
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any
+  }
+}
 
 export default function VoiceCommandsDemo() {
-  const [command, setCommand] = useState("")
-  const [response, setResponse] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [groqTestResult, setGroqTestResult] = useState("")
+  const [isListening, setIsListening] = useState(false)
+  const [voiceCommand, setVoiceCommand] = useState("")
+  const [processedInstruction, setProcessedInstruction] = useState("")
+  const [groqTestResponse, setGroqTestResponse] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [isTestingGroq, setIsTestingGroq] = useState(false)
   const { toast } = useToast()
 
+  let recognition: any = null
+
+  useEffect(() => {
+    if ("webkitSpeechRecognition" in window) {
+      recognition = new window.webkitSpeechRecognition()
+      recognition.continuous = false
+      recognition.interimResults = false
+      recognition.lang = "en-US"
+
+      recognition.onstart = () => {
+        setIsListening(true)
+        setVoiceCommand("")
+        setProcessedInstruction("")
+        toast({
+          title: "Listening...",
+          description: "Say your command now.",
+        })
+      }
+
+      recognition.onresult = (event: any) => {
+        const command = event.results[0][0].transcript
+        setVoiceCommand(command)
+        setIsListening(false)
+        toast({
+          title: "Command Captured",
+          description: `"${command}"`,
+        })
+      }
+
+      recognition.onerror = (event: any) => {
+        setIsListening(false)
+        console.error("Speech recognition error:", event.error)
+        toast({
+          title: "Speech Recognition Error",
+          description: event.error,
+          variant: "destructive",
+        })
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+    } else {
+      toast({
+        title: "Browser Not Supported",
+        description: "Web Speech API is not available in this browser.",
+        variant: "destructive",
+      })
+    }
+
+    return () => {
+      if (recognition) {
+        recognition.stop()
+      }
+    }
+  }, [])
+
+  const startListening = () => {
+    if (recognition) {
+      recognition.start()
+    }
+  }
+
+  const stopListening = () => {
+    if (recognition) {
+      recognition.stop()
+    }
+  }
+
   const handleProcessCommand = async () => {
-    setIsLoading(true)
-    setResponse("")
+    if (!voiceCommand) {
+      toast({
+        title: "No Command",
+        description: "Please say or type a voice command first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsProcessing(true)
+    setProcessedInstruction("")
     try {
-      // Use relative path for API call
-      const res = await fetch(`/api/process-command`, {
+      const response = await fetch("/api/process-command", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          command,
-          shopifyUrl: window.location.origin, // Use current origin for Shopify URL context
-          pageContext: { url: window.location.href, pageType: "demo", cartCount: 0 }, // Mock pageContext for demo
-        }),
+        body: JSON.stringify({ command: voiceCommand }),
       })
 
-      const data = await res.json()
-      if (res.ok) {
-        setResponse(JSON.stringify(data, null, 2))
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setProcessedInstruction(data.instruction)
         toast({
           title: "Command Processed",
-          description: data.response || "Command processed successfully.",
+          description: "Instruction generated successfully.",
         })
       } else {
-        setResponse(`Error: ${data.error || "Unknown error"}`)
+        setProcessedInstruction(`Error: ${data.message || "Unknown error"}`)
         toast({
-          title: "Error",
-          description: data.error || "Failed to process command.",
+          title: "Error Processing Command",
+          description: data.message || "Failed to get instruction from AI.",
           variant: "destructive",
         })
       }
     } catch (error: any) {
       console.error("Error processing command:", error)
-      setResponse(`Network Error: ${error.message}`)
+      setProcessedInstruction(`Error processing command: ${error.message}`)
       toast({
         title: "Network Error",
-        description: "Could not connect to the API. Check your network and server.",
+        description: `Could not connect to the API: ${error.message}`,
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsProcessing(false)
     }
   }
 
-  const testGroqConnection = async () => {
-    setGroqTestResult("Testing...")
+  const handleTestGroqConnection = async () => {
+    setIsTestingGroq(true)
+    setGroqTestResponse("")
     try {
-      // Use relative path for API call
-      const res = await fetch(`/api/groq-test`, {
+      const response = await fetch("/api/groq-test", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
       })
 
-      const data = await res.json()
-      if (res.ok) {
-        setGroqTestResult(`Success: ${data.message}`)
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setGroqTestResponse(`Success: ${data.message} Response: "${data.response}"`)
         toast({
-          title: "Groq Connection",
+          title: "Groq Connection Test",
           description: "Successfully connected to Groq API.",
         })
       } else {
-        setGroqTestResult(`Error: ${data.error || "Unknown error"}`)
+        setGroqTestResponse(`Error: ${data.message || "Unknown error"}`)
         toast({
-          title: "Groq Connection Error",
-          description: data.error || "Failed to connect to Groq API.",
+          title: "Groq Connection Failed",
+          description: data.message || "Failed to connect to Groq API.",
           variant: "destructive",
         })
       }
     } catch (error: any) {
       console.error("Error testing Groq connection:", error)
-      setGroqTestResult(`Network Error: ${error.message}`)
+      setGroqTestResponse(`Error testing connection: ${error.message}`)
       toast({
         title: "Network Error",
-        description: "Could not connect to Groq test endpoint. Check your network and server.",
+        description: `Could not connect to Groq API: ${error.message}`,
         variant: "destructive",
       })
+    } finally {
+      setIsTestingGroq(false)
     }
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Shopify Voice Automation Demo</CardTitle>
-        <CardDescription>
-          Test voice commands for your Shopify store. Ensure your Next.js app is deployed and the browser extension is
-          installed.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-6">
-        <div className="grid gap-2">
-          <Label htmlFor="command">Voice Command</Label>
-          <Input
-            id="command"
-            placeholder="e.g., Go to cart, Search for t-shirts, Add 2 blue shirts to cart"
-            value={command}
-            onChange={(e) => setCommand(e.target.value)}
-            disabled={isLoading}
-          />
-        </div>
-        <Button onClick={handleProcessCommand} disabled={isLoading}>
-          {isLoading ? "Processing..." : "Process Command"}
-        </Button>
-        {response && (
-          <div className="grid gap-2">
-            <Label htmlFor="response">API Response</Label>
-            <Textarea id="response" value={response} readOnly rows={10} className="font-mono text-sm" />
+    <div className="space-y-8">
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Voice Command Demo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="voice-command">Your Voice Command</Label>
+            <div className="flex space-x-2">
+              <Button onClick={startListening} disabled={isListening} className="flex-shrink-0">
+                <Mic className="mr-2 h-4 w-4" />
+                {isListening ? "Listening..." : "Start Listening"}
+              </Button>
+              <Button
+                onClick={stopListening}
+                disabled={!isListening}
+                variant="outline"
+                className="flex-shrink-0 bg-transparent"
+              >
+                <StopCircle className="mr-2 h-4 w-4" />
+                Stop Listening
+              </Button>
+              <Textarea
+                id="voice-command"
+                placeholder="Or type your command here..."
+                value={voiceCommand}
+                onChange={(e) => setVoiceCommand(e.target.value)}
+                className="flex-grow"
+              />
+            </div>
           </div>
-        )}
-        <div className="grid gap-2">
-          <Label htmlFor="groq-test">Groq API Connection Test</Label>
-          <Button onClick={testGroqConnection} disabled={isLoading}>
-            Test Groq Connection
+
+          <Button onClick={handleProcessCommand} className="w-full" disabled={isProcessing || !voiceCommand}>
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing Command...
+              </>
+            ) : (
+              "Process Command"
+            )}
           </Button>
-          {groqTestResult && <p className="text-sm text-muted-foreground">{groqTestResult}</p>}
-        </div>
-      </CardContent>
-    </Card>
+
+          {processedInstruction && (
+            <div className="grid w-full items-center gap-1.5">
+              <Label>AI Generated Instruction</Label>
+              <Textarea value={processedInstruction} readOnly className="font-mono text-sm" />
+            </div>
+          )}
+
+          <Separator />
+
+          <Button onClick={handleTestGroqConnection} className="w-full" variant="secondary" disabled={isTestingGroq}>
+            {isTestingGroq ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Testing Groq Connection...
+              </>
+            ) : (
+              "Test Groq Connection"
+            )}
+          </Button>
+
+          {groqTestResponse && (
+            <div className="grid w-full items-center gap-1.5">
+              <Label>Groq API Test Result</Label>
+              <Textarea value={groqTestResponse} readOnly className="font-mono text-sm" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AdvancedVoiceCommands />
+      <OrnaVoiceCommands />
+      <OrnaStoreSelectors />
+    </div>
   )
 }

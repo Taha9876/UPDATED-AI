@@ -642,6 +642,49 @@
       }
     }
 
+    // Listen for messages from the extension
+    window.addEventListener('message', (event) => {
+      // Ensure the message is from a trusted source if this were a real-world scenario
+      if (event.source !== window) {
+        return;
+      }
+
+      if (event.data.type && (event.data.type === 'VOICE_COMMAND_EXECUTE')) {
+        const instruction = event.data.instruction;
+        console.log('Shopify Voice Agent received instruction:', instruction);
+
+        // Here you would implement logic to interact with the Shopify store's DOM
+        // based on the instruction. This would involve finding elements by their
+        // CSS selectors and simulating user actions (clicks, input, etc.).
+
+        if (instruction.includes('navigate to the shopping cart page')) {
+          window.location.href = '/cart';
+        } else if (instruction.includes('perform a search for')) {
+          const query = instruction.split("'")[1];
+          if (query) {
+            const searchInput = document.querySelector('input[name="q"]');
+            if (searchInput) {
+              searchInput.value = query;
+              searchInput.form?.submit();
+            } else {
+              window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            }
+          }
+        } else if (instruction.includes('click the "Add to Cart" button')) {
+          const addToCartButton = document.querySelector('button[name="add"]');
+          if (addToCartButton) {
+            addToCartButton.click();
+          }
+        }
+        // Add more Shopify-specific automation logic here
+      }
+    }, false);
+
+    // Example: Function to send data back to the extension (if needed)
+    function sendToExtension(data) {
+      window.postMessage({ type: 'VOICE_COMMAND_RESPONSE', ...data }, '*');
+    }
+
     console.log("Shopify Voice Automation Liquid Snippet Loaded.");
   });
 </script>
