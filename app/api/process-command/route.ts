@@ -1,179 +1,129 @@
-import { NextResponse } from "next/server"
 import { generateText } from "ai"
 import { groq } from "@ai-sdk/groq"
-import { z } from "zod"
-
-// Define the schema for the expected action from the AI model
-const actionSchema = z.object({
-  type: z.enum([
-    "navigate",
-    "search",
-    "add_to_cart",
-    "go_to_cart",
-    "go_to_checkout",
-    "click_element",
-    "scroll",
-    "refresh_page",
-    "inform", // For responses that don't require a specific DOM action
-    "update_quantity", // New: Update quantity of an item in cart
-    "remove_item", // New: Remove an item from cart
-    "apply_discount", // New: Apply a discount code
-    "view_orders", // New: Navigate to order history
-    "contact_support", // New: Navigate to contact support
-    "sort_products", // New: Sort products
-    "filter_products", // New: Filter products
-    "add_to_wishlist", // New: Add item to wishlist
-    "view_wishlist", // New: View wishlist
-    "clear_cart", // New: Clear the entire cart
-  ]),
-  payload: z.record(z.any()).optional(), // Flexible payload for different action types
-})
+import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
   try {
-    const { command, shopifyUrl, pageContext } = await req.json()
+    const { command, shopifyStoreUrl } = await req.json()
 
-    const GROQ_API_KEY = process.env.GROQ_API_KEY
-
-    if (!GROQ_API_KEY) {
-      return NextResponse.json({ error: "Groq API Key not configured on the server." }, { status: 500 })
+    if (!command) {
+      return NextResponse.json({ error: "Command is required" }, { status: 400 })
     }
 
-    const systemPrompt = `
-      You are an AI assistant for a Shopify store. Your goal is to interpret user voice commands and translate them into actionable steps for a browser extension to execute on a Shopify store.
-      You have access to the current Shopify page context.
+    const { text } = await generateText({
+      model: groq("llama3-8b-8192"), // Using Groq's Llama 3 8B model
+      prompt: `You are an AI assistant for a Shopify store. Your goal is to interpret user voice commands and translate them into actions or information related to the Shopify store.
       
-      Current Shopify URL: ${shopifyUrl}
-      Current Page Context: ${JSON.stringify(pageContext, null, 2)}
+      Here are the types of commands you can process and their expected JSON output format:
 
-      Based on the user's command, determine the most appropriate action and its parameters.
-      If a command requires navigating to a specific page, use the 'navigate' action.
-      If a command requires searching, use the 'search' action.
-      If a command requires adding to cart, use the 'add_to_cart' action.
-      If a command requires going to cart, use the 'go_to_cart' action.
-      If a command requires going to checkout, use the 'go_to_checkout' action.
-      If a command requires clicking a specific element (e.g., a button or link by text or selector), use 'click_element'.
-      If a command requires scrolling, use 'scroll'.
-      If a command requires refreshing the page, use 'refresh_page'.
-      If the command is purely informational or cannot be translated into a direct action, use the 'inform' action and provide a helpful response.
-      Use 'update_quantity' to change the quantity of an item in the cart.
-      Use 'remove_item' to remove a specific item from the cart.
-      Use 'apply_discount' to apply a discount code.
-      Use 'view_orders' to navigate to the user's order history.
-      Use 'contact_support' to navigate to the support page.
-      Use 'sort_products' to sort product listings.
-      Use 'filter_products' to apply filters to product listings.
-      Use 'add_to_wishlist' to add a product to the wishlist.
-      Use 'view_wishlist' to navigate to the wishlist page.
-      Use 'clear_cart' to empty the shopping cart.
+      1.  **Navigation:**
+          - "Go to homepage": \`{"action": "navigate", "target": "/"}\`
+          - "Go to products page": \`{"action": "navigate", "target": "/products"}\`
+          - "Go to cart": \`{"action": "navigate", "target": "/cart"}\`
+          - "Go to checkout": \`{"action": "navigate", "target": "/checkout"}\`
+          - "Go to my orders": \`{"action": "navigate", "target": "/account/orders"}\`
+          - "Go to login page": \`{"action": "navigate", "target": "/account/login"}\`
+          - "Go to register page": \`{"action": "navigate", "target": "/account/register"}\`
+          - "Go to contact us": \`{"action": "navigate", "target": "/pages/contact"}\`
+          - "Go to about us": \`{"action": "navigate", "target": "/pages/about-us"}\`
+          - "Go to blog": \`{"action": "navigate", "target": "/blogs/news"}\`
+          - "Show me the privacy policy": \`{"action": "navigate", "target": "/policies/privacy-policy"}\`
+          - "Show me the terms of service": \`{"action": "navigate", "target": "/policies/terms-of-service"}\`
+          - "Take me to the refund policy": \`{"action": "navigate", "target": "/policies/refund-policy"}\`
+          - "Open the search page": \`{"action": "navigate", "target": "/search"}\`
+          - "Go back": \`{"action": "navigate", "target": "back"}\`
+          - "Go forward": \`{"action": "navigate", "target": "forward"}\`
+          - "Refresh the page": \`{"action": "navigate", "target": "refresh"}\`
+          - "Scroll down": \`{"action": "scroll", "direction": "down"}\`
+          - "Scroll up": \`{"action": "scroll", "direction": "up"}\`
+          - "Scroll to top": \`{"action": "scroll", "target": "top"}\`
+          - "Scroll to bottom": \`{"action": "scroll", "target": "bottom"}\`
+          - "Zoom in": \`{"action": "zoom", "direction": "in"}\`
+          - "Zoom out": \`{"action": "zoom", "direction": "out"}\`
+          - "Reset zoom": \`{"action": "zoom", "direction": "reset"}\`
 
-      Provide your response as a JSON object with the following structure:
-      {
-        "speech": "A short, natural language response to the user.",
-        "action": {
-          "type": "navigate" | "search" | "add_to_cart" | "go_to_cart" | "go_to_checkout" | "click_element" | "scroll" | "refresh_page" | "inform" | "update_quantity" | "remove_item" | "apply_discount" | "view_orders" | "contact_support" | "sort_products" | "filter_products" | "add_to_wishlist" | "view_wishlist" | "clear_cart",
-          "payload": {
-            // Parameters specific to the action type
-            // For 'navigate': { "path": "/products" } or { "url": "full_url" }
-            // For 'search': { "query": "t-shirt" }
-            // For 'add_to_cart': { "productName": "Vintage T-Shirt", "quantity": 1 }
-            // For 'click_element': { "selector": "button.add-to-cart", "text": "Add to Cart" } (use one or both)
-            // For 'scroll': { "direction": "up" | "down" }
-            // For 'inform': { "message": "Your message here" }
-            // For 'update_quantity': { "productName": "Blue Shirt", "quantity": 3 }
-            // For 'remove_item': { "productName": "Red Dress" }
-            // For 'apply_discount': { "code": "SAVE10" }
-            // For 'sort_products': { "criteria": "price", "order": "asc" }
-            // For 'filter_products': { "category": "electronics", "priceMax": 500 }
-            // For 'add_to_wishlist': { "productName": "Leather Wallet" }
-          }
-        }
-      }
+      2.  **Product Search/Filtering:**
+          - "Search for [product name]": \`{"action": "search", "query": "[product name]"}\`
+          - "Show me [category] products": \`{"action": "filter", "category": "[category]"}\`
+          - "Filter by price [min] to [max]": \`{"action": "filter", "price_min": [min], "price_max": [max]}\`
+          - "Show me products by [brand]": \`{"action": "filter", "brand": "[brand]"}\`
+          - "Sort by price low to high": \`{"action": "sort", "by": "price", "order": "asc"}\`
+          - "Sort by price high to low": \`{"action": "sort", "by": "price", "order": "desc"}\`
+          - "Sort by newest arrivals": \`{"action": "sort", "by": "date", "order": "desc"}\`
+          - "Sort by best selling": \`{"action": "sort", "by": "best_selling"}\`
 
-      Examples:
-      User: "Go to products"
-      Response: { "speech": "Navigating to the products page.", "action": { "type": "navigate", "payload": { "path": "/products" } } }
+      3.  **Product Interaction (requires being on a product page or product listing):**
+          - "Add [quantity] of this to cart": \`{"action": "add_to_cart", "quantity": [quantity]}\` (Assumes current product)
+          - "Add [product name] to cart": \`{"action": "add_to_cart", "product_name": "[product name]"}\`
+          - "View product details": \`{"action": "view_product_details"}\` (Assumes current product)
+          - "Select size [size]": \`{"action": "select_option", "type": "size", "value": "[size]"}\`
+          - "Select color [color]": \`{"action": "select_option", "type": "color", "value": "[color]"}\`
 
-      User: "Search for vintage t-shirts"
-      Response: { "speech": "Searching for vintage t-shirts.", "action": { "type": "search", "payload": { "query": "vintage t-shirts" } } }
+      4.  **Cart Management:**
+          - "Remove [product name] from cart": \`{"action": "remove_from_cart", "product_name": "[product name]"}\`
+          - "Update quantity of [product name] to [quantity]": \`{"action": "update_cart_quantity", "product_name": "[product name]", "quantity": [quantity]}\`
+          - "Empty my cart": \`{"action": "empty_cart"}\`
 
-      User: "Add the blue shirt to my cart"
-      Response: { "speech": "Adding the blue shirt to your cart.", "action": { "type": "add_to_cart", "payload": { "productName": "blue shirt", "quantity": 1 } } }
+      5.  **Account Management:**
+          - "View my profile": \`{"action": "navigate", "target": "/account"}\`
+          - "Update my address": \`{"action": "navigate", "target": "/account/addresses"}\`
+          - "Change my password": \`{"action": "navigate", "target": "/account/password"}\`
 
-      User: "What is my cart total?" (assuming pageContext has cart info)
-      Response: { "speech": "Your current cart has ${pageContext.cartCount} items.", "action": { "type": "inform", "payload": { "message": "Cart total requested" } } }
+      6.  **Information Retrieval:**
+          - "What is the current time?": \`{"action": "get_info", "query": "current_time"}\`
+          - "What is the current date?": \`{"action": "get_info", "query": "current_date"}\`
+          - "What is the weather like?": \`{"action": "get_info", "query": "weather"}\` (Note: This would require an external API integration)
+          - "Tell me about [product name]": \`{"action": "get_info", "query": "product_description", "product_name": "[product name]"}\`
+          - "What is the price of [product name]?": \`{"action": "get_info", "query": "product_price", "product_name": "[product name]"}\`
+          - "Is [product name] in stock?": \`{"action": "get_info", "query": "product_stock", "product_name": "[product name]"}\`
+          - "What are the shipping costs?": \`{"action": "get_info", "query": "shipping_costs"}\`
+          - "What is your return policy?": \`{"action": "get_info", "query": "return_policy"}\`
+          - "How can I contact support?": \`{"action": "get_info", "query": "contact_support"}\`
 
-      User: "Go to checkout"
-      Response: { "speech": "Proceeding to checkout.", "action": { "type": "go_to_checkout", "payload": {} } }
+      7.  **Checkout Process:**
+          - "Apply discount code [code]": \`{"action": "apply_discount", "code": "[code]"}\`
+          - "Proceed to payment": \`{"action": "navigate", "target": "/checkout?step=payment"}\`
+          - "Complete order": \`{"action": "complete_order"}\` (This would typically be a final step on the checkout page)
 
-      User: "Click the buy now button"
-      Response: { "speech": "Clicking the buy now button.", "action": { "type": "click_element", "payload": { "text": "Buy Now" } } }
+      8.  **Voice Control:**
+          - "Stop listening": \`{"action": "voice_control", "command": "stop_listening"}\`
+          - "Start listening": \`{"action": "voice_control", "command": "start_listening"}\`
+          - "Mute voice": \`{"action": "voice_control", "command": "mute"}\`
+          - "Unmute voice": \`{"action": "voice_control", "command": "unmute"}\`
 
-      User: "Scroll down"
-      Response: { "speech": "Scrolling down the page.", "action": { "type": "scroll", "payload": { "direction": "down" } } }
+      9.  **Shopify Admin Actions (for store owners/admins - requires authentication and specific permissions):**
+          - "View recent orders": \`{"action": "admin_navigate", "target": "/admin/orders"}\`
+          - "Add new product": \`{"action": "admin_navigate", "target": "/admin/products/new"}\`
+          - "View customers": \`{"action": "admin_navigate", "target": "/admin/customers"}\`
+          - "Check inventory for [product name]": \`{"action": "admin_get_info", "query": "inventory", "product_name": "[product name]"}\`
 
-      User: "Refresh the page"
-      Response: { "speech": "Refreshing the page.", "action": { "type": "refresh_page", "payload": {} } }
+      10. **General Assistance:**
+          - "Hello": \`{"action": "greet"}\`
+          - "Thank you": \`{"action": "thank"}\`
+          - "Help me": \`{"action": "help"}\`
+          - "What can you do?": \`{"action": "help"}\`
 
-      User: "Tell me a joke"
-      Response: { "speech": "Why don't scientists trust atoms? Because they make up everything!", "action": { "type": "inform", "payload": { "message": "Joke requested" } } }
+      If the command does not fit any of the above, respond with: \`{"action": "unrecognized", "message": "I'm sorry, I don't understand that command."}\`
 
-      User: "Change the quantity of the vintage t-shirt to 3"
-      Response: { "speech": "Updating the quantity of vintage t-shirt to 3.", "action": { "type": "update_quantity", "payload": { "productName": "vintage t-shirt", "quantity": 3 } } }
-
-      User: "Remove the red dress from my cart"
-      Response: { "speech": "Removing the red dress from your cart.", "action": { "type": "remove_item", "payload": { "productName": "red dress" } } }
-
-      User: "Apply discount code SUMMER20"
-      Response: { "speech": "Applying discount code SUMMER20.", "action": { "type": "apply_discount", "payload": { "code": "SUMMER20" } } }
-
-      User: "Show me my past orders"
-      Response: { "speech": "Navigating to your order history.", "action": { "type": "view_orders", "payload": {} } }
-
-      User: "I need help"
-      Response: { "speech": "Navigating to the contact support page.", "action": { "type": "contact_support", "payload": {} } }
-
-      User: "Sort products by price low to high"
-      Response: { "speech": "Sorting products by price from low to high.", "action": { "type": "sort_products", "payload": { "criteria": "price", "order": "asc" } } }
-
-      User: "Filter by category electronics"
-      Response: { "speech": "Applying filter for electronics category.", "action": { "type": "filter_products", "payload": { "category": "electronics" } } }
-
-      User: "Add this item to my wishlist"
-      Response: { "speech": "Adding the current item to your wishlist.", "action": { "type": "add_to_wishlist", "payload": { "productName": "current product" } } }
-
-      User: "View my wishlist"
-      Response: { "speech": "Navigating to your wishlist.", "action": { "type": "view_wishlist", "payload": {} } }
-
-      User: "Clear my shopping cart"
-      Response: { "speech": "Clearing your shopping cart.", "action": { "type": "clear_cart", "payload": {} } }
-
-      Prioritize direct actions over informational responses if a clear action can be inferred.
-      If a product name is mentioned for 'add_to_cart', extract it accurately.
-      Ensure the 'path' for 'navigate' is relative to the Shopify store root (e.g., /products, /collections/summer-sale).
-      For 'click_element', try to infer a common selector or text if possible.
-    `
-
-    const { object: aiResponse } = await generateText({
-      model: groq("llama3-8b-8192"), // Use a suitable Groq model
-      system: systemPrompt,
-      prompt: command,
-      apiKey: GROQ_API_KEY,
-      schema: z.object({
-        speech: z.string(),
-        action: actionSchema,
-      }),
+      The response should ONLY be a JSON object. Do not include any other text or formatting.
+      
+      User command: "${command}"
+      `,
+      temperature: 0.7,
+      maxTokens: 200,
+      response_format: { type: "json_object" },
     })
 
-    return NextResponse.json(aiResponse)
+    const parsedResponse = JSON.parse(text)
+
+    // For navigation actions, prepend the Shopify store URL if it's a relative path
+    if (parsedResponse.action === "navigate" && parsedResponse.target && !parsedResponse.target.startsWith("http")) {
+      parsedResponse.fullUrl = `${shopifyStoreUrl}${parsedResponse.target}`
+    }
+
+    return NextResponse.json(parsedResponse)
   } catch (error) {
-    console.error("Error in /api/process-command:", error)
-    return NextResponse.json(
-      {
-        speech: "Sorry, I couldn't process that command. Please try again.",
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    )
+    console.error("Error processing command:", error)
+    return NextResponse.json({ error: "Failed to process command" }, { status: 500 })
   }
 }
