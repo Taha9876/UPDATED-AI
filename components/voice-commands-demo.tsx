@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Loader2, Mic, StopCircle, RefreshCw } from "lucide-react"
-import type SpeechRecognition from "web-speech-api"
+import type SpeechRecognition from "speech-recognition"
 
 interface VoiceCommandDemoProps {
   shopName: string
